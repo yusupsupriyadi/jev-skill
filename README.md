@@ -48,10 +48,10 @@ Without a key the plugin stays completely idle. It never errors, never blocks, a
 
 ## Cost
 
-Routing sends your prompt plus the description of every installed skill. On a machine with about
-500 skills that is roughly 25,000 to 30,000 input tokens per routed prompt, near $0.001. Judgment
-sends the diff and costs less. Short prompts, acknowledgements, and anything starting with `/` are
-skipped before any call is made.
+Routing sends your prompt plus the description of every installed skill. Measured against a
+537-entry catalog: about $0.0004 per routed prompt across five parallel calls, taking 1.5 to 4
+seconds. A judgment measured $0.00026. Short prompts, acknowledgements, and anything starting with
+`/` are skipped before any call is made.
 
 To cut the bill, exclude namespaces you never route to:
 
