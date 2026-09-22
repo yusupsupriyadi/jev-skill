@@ -5,3 +5,6 @@ node_modules/
 !.env.example
 .DS_Store
 Thumbs.db
+
+# local development notes, not published
+.development-history/
