@@ -8,3 +8,8 @@ Thumbs.db
 
 # local development notes, not published
 .development-history/
+
+# local output of `npx skills add`, not part of the plugin
+.agents/skills/
+.claude/skills/
+skills-lock.json
