@@ -1,6 +1,8 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { parseFrontmatter, isTruthy } from './frontmatter.mjs';
+import { detectHost, skillRoots } from './platforms.mjs';
 
 const MAX_DESCRIPTION = 200;
 
@@ -147,9 +149,9 @@ function collectFromPluginRoot(root, pluginName, includeAgents) {
   return entries;
 }
 
-function collectPersonalSkills(configDir) {
+/** Reads one skills directory, whichever agent owns it. The layout is the same everywhere. */
+function collectSkillsRoot(skillsRoot, source) {
   const entries = [];
-  const skillsRoot = path.join(configDir, 'skills');
   for (const dir of listDirs(skillsRoot)) {
     const dirPath = path.join(skillsRoot, dir);
 
@@ -174,21 +176,16 @@ function collectPersonalSkills(configDir) {
 
     const file = path.join(dirPath, 'SKILL.md');
     if (!fs.existsSync(file)) continue;
-    const entry = makeEntry({ id: dir, kind: 'skill', file, source: 'personal' });
+    const entry = makeEntry({ id: dir, kind: 'skill', file, source });
     if (entry) entries.push(entry);
   }
   return entries;
 }
 
+/** Commands and agents are Claude Code concepts; skills come from the platform scan instead. */
 function collectProjectLocal(cwd, includeAgents) {
   const entries = [];
   const base = path.join(cwd, '.claude');
-  for (const dir of listDirs(path.join(base, 'skills'))) {
-    const file = path.join(base, 'skills', dir, 'SKILL.md');
-    if (!fs.existsSync(file)) continue;
-    const entry = makeEntry({ id: dir, kind: 'skill', file, source: 'project' });
-    if (entry) entries.push(entry);
-  }
   for (const file of walkFiles(path.join(base, 'commands'), '.md', 2)) {
     const name = path.basename(file, '.md');
     const entry = makeEntry({ id: name, kind: 'command', file, source: 'project' });
@@ -206,7 +203,10 @@ function collectProjectLocal(cwd, includeAgents) {
 }
 
 /** Plugins loaded with --plugin-dir are absent from the registry; JEV_EXTRA_PLUGIN_DIRS adds them. */
-export function discoverCatalog({ configDir, cwd, includeAgents = true, routeExclude = [], extraPluginDirs = [] }) {
+export function discoverCatalog({
+  configDir, cwd, includeAgents = true, routeExclude = [], extraPluginDirs = [],
+  platform = detectHost(), homeDir = os.homedir(),
+}) {
   const entries = [];
   const enabled = readEnabledPlugins({ configDir, cwd });
   const registry = readJson(path.join(configDir, 'plugins', 'installed_plugins.json'));
@@ -222,7 +222,9 @@ export function discoverCatalog({ configDir, cwd, includeAgents = true, routeExc
     if (fs.existsSync(dir)) entries.push(...collectFromPluginRoot(dir, null, includeAgents));
   }
 
-  entries.push(...collectPersonalSkills(configDir));
+  for (const root of skillRoots({ cwd, configDir, homeDir, platformId: platform })) {
+    entries.push(...collectSkillsRoot(root.dir, root.scope));
+  }
   entries.push(...collectProjectLocal(cwd, includeAgents));
 
   const seen = new Set();
@@ -233,8 +235,8 @@ export function discoverCatalog({ configDir, cwd, includeAgents = true, routeExc
     if (seen.has(key)) return false;
     seen.add(key);
     const lower = entry.id.toLowerCase();
-    // Never route to this plugin's own skills.
-    if (lower === 'jev' || lower.startsWith('jev:')) return false;
+    // Never route to this plugin's own skills, under either naming scheme.
+    if (lower === 'jev' || lower.startsWith('jev:') || lower.startsWith('jev-')) return false;
     if (excludes.some((prefix) => lower.startsWith(prefix))) return false;
     return true;
   });

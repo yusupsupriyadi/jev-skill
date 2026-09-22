@@ -1,4 +1,5 @@
 ---
+name: jev-ask
 description: Ask TypeSafe Jev a typed question and get calibrated probabilities back instead of prose. Use for a fast yes/no, a pick from a fixed list, or a score on a rubric - classifying, routing, triaging, ranking, gating, or extracting from text - especially over many items at once.
 argument-hint: [what to decide]
 allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/cli.mjs" *), Write
@@ -72,3 +73,8 @@ questions about it with calibrated probabilities, in roughly 70 to 500 ms per ca
 `noul` carries no confidence, so read the probability itself. Act on high confidence, confirm on
 middling confidence, and escalate to your own reasoning when it is low. Say which band you are in
 when you report back, and never present a probability as a certainty.
+
+## Running the CLI on another agent
+
+The commands above locate the jev CLI through `${CLAUDE_PLUGIN_ROOT}`, which Claude Code sets. On any
+other agent, set `JEV_HOME` to this plugin directory and run `node "$JEV_HOME/scripts/cli.mjs"` instead.

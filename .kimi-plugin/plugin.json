@@ -1,0 +1,19 @@
+{
+  "name": "jev",
+  "version": "0.3.0",
+  "description": "Structured decisions for coding agents: which installed skill fits the request, and what is wrong with the change a turn just made.",
+  "author": {
+    "name": "Yusup Supriyadi"
+  },
+  "homepage": "https://github.com/yusupsupriyadi/jev-skill",
+  "license": "MIT",
+  "keywords": ["jev", "typesafe", "openrouter", "routing", "decisions"],
+  "skills": "./skills/",
+  "skillInstructions": "Kimi Code tool mapping for jev skills:\n\n- Where a jev skill asks the user to choose a provider, call Kimi Code's `AskUserQuestion` tool with one question and two options.\n- Where a jev skill shows a command to run, use Kimi Code's `Bash` tool.\n- jev skills locate their CLI through `${CLAUDE_PLUGIN_ROOT}`. If that variable is not set, set `JEV_HOME` to the plugin directory and run `node \"$JEV_HOME/scripts/cli.mjs\"` instead.\n- Automatic routing and post-turn judgment rely on Claude Code hook events. On Kimi Code the skills run on demand only.",
+  "interface": {
+    "displayName": "Jev",
+    "shortDescription": "Typed decisions: skill routing and post-turn judgment",
+    "capabilities": ["Read"],
+    "websiteURL": "https://github.com/yusupsupriyadi/jev-skill"
+  }
+}

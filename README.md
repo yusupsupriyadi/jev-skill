@@ -1,12 +1,12 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/version-0.2.0-1f6feb" alt="Version 0.2.0">
+  <img src="https://img.shields.io/badge/version-0.3.0-1f6feb" alt="Version 0.3.0">
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2020-5fa04e" alt="Node 20 or newer">
   <img src="https://img.shields.io/badge/dependencies-0-8957e5" alt="Zero dependencies">
   <img src="https://img.shields.io/badge/providers-TypeSafe%20%7C%20OpenRouter-f0883e" alt="TypeSafe or OpenRouter">
 </p>
 
-# jev for Claude Code
+# jev for coding agents
 
 > **Two decisions, handed to a model that does nothing but decide.** Which of your installed skills
 > fits the request you just typed, and whether the turn that just finished really did what it said.
@@ -172,6 +172,60 @@ anything. Check the state at any time with `/jev:doctor`.
 Same request and response shape either way, so switching providers is a matter of running
 `/jev:setup` again. A key is only ever sent to the provider it was saved against.
 
+## Other agents
+
+The skills follow the cross-agent `SKILL.md` convention, so they install anywhere that standard is
+read. What differs between agents is how much runs by itself.
+
+| | Claude Code | Every other agent |
+|---|---|---|
+| `/jev:setup`, `/jev:ask`, `/jev:route`, `/jev:judge`, `/jev:doctor` | Yes | Yes |
+| Routing on every prompt | Yes | No |
+| Judgment after every turn | Yes | No |
+
+Routing by itself needs a hook that fires when a prompt is submitted, and automatic judgment needs
+one that fires when a turn ends. Both are Claude Code hook events. Everywhere else jev runs when
+you ask it to, which is what the five skills are for.
+
+Install into any agent's skills directory:
+
+```bash
+npx skills add yusupsupriyadi/jev-skill
+```
+
+Or through the agent's own plugin command:
+
+| Agent | Command |
+|---|---|
+| Codex | `codex plugin marketplace add yusupsupriyadi/jev-skill`, then `codex plugin add jev@jev-skill` |
+| Kimi Code | `/plugins install https://github.com/yusupsupriyadi/jev-skill` |
+| Cursor | Add the marketplace through Cursor's Customize interface |
+
+Where the skills land:
+
+| Agent | Project | Global |
+|---|---|---|
+| Claude Code | `.claude/skills/` | `~/.claude/skills/` |
+| Codex | `.codex/skills/` | `~/.agents/skills/` |
+| Cursor | `.cursor/skills/` | `~/.cursor/skills/` |
+| Gemini CLI | `.gemini/skills/` | `~/.gemini/skills/` |
+| Antigravity | `.agents/skills/` | `~/.gemini/config/skills/` |
+| OpenCode | `.opencode/skills/` | `~/.config/opencode/skills/` |
+| Kimi Code | `.agents/skills/` | `~/.agents/skills/` |
+| Hermes | `.hermes/skills/` | `~/.hermes/skills/` |
+| GitHub Copilot | `.agents/skills/` | `~/.github/skills/` |
+
+jev scans only the directories belonging to the agent running it, so a skill installed for one
+agent is never suggested to a host that cannot load it. Claude Code identifies itself through its
+environment; for any other agent set `JEV_PLATFORM`, and set `JEV_HOME` to this plugin directory so
+the skills can find the CLI. Run `/jev:doctor` to see which agent jev thinks it is running under
+and which skills directories it found.
+
+**What is verified:** Claude Code, end to end, on Windows, plus a clean install through
+`npx skills add`. The other agents follow the published skills convention and their manifests ship
+in this repo, but no live install on them has been confirmed. If you run jev on one, an issue
+saying whether it worked is welcome.
+
 ## What leaves your machine
 
 Read this before installing on work you cannot share.
@@ -206,6 +260,8 @@ which wins.
 | `send_diff` | `JEV_SEND_DIFF` | `true` |
 | `timeout_ms` | `JEV_TIMEOUT_MS` | `2500` |
 | | `JEV_API_URL` | the provider's endpoint |
+| | `JEV_PLATFORM` | Claude Code when detected, else every agent |
+| | `JEV_HOME` | the plugin directory, for non-Claude agents |
 | | `JEV_EXTRA_PLUGIN_DIRS` | empty |
 | | `JEV_DEBUG` | off |
 
@@ -266,6 +322,10 @@ it is too strict for your catalog.
 
 **Do I need both providers?**
 No, one key is enough. Run `/jev:setup` again to switch.
+
+**Does it work outside Claude Code?**
+The five skills do, on any agent that reads the `SKILL.md` convention. Routing on every prompt and
+judging after every turn need Claude Code hook events, so elsewhere you run jev when you want it.
 
 **What happens if I never add a key?**
 Nothing at all. Every path exits quietly, and your prompts and turns are untouched.

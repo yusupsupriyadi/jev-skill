@@ -1,0 +1,23 @@
+{
+  "name": "jev",
+  "version": "0.3.0",
+  "description": "Structured decisions for coding agents: which installed skill fits the request, and what is wrong with the change a turn just made.",
+  "author": {
+    "name": "Yusup Supriyadi",
+    "url": "https://github.com/yusupsupriyadi"
+  },
+  "homepage": "https://github.com/yusupsupriyadi/jev-skill",
+  "repository": "https://github.com/yusupsupriyadi/jev-skill",
+  "license": "MIT",
+  "keywords": ["jev", "typesafe", "openrouter", "routing", "decisions"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Jev",
+    "shortDescription": "Typed decisions: skill routing and post-turn judgment",
+    "longDescription": "Jev answers typed questions about your session with calibrated probabilities. Ask which installed skill fits a request, or whether the change a turn just made claims more than it verified. Requires a TypeSafe or OpenRouter API key, set up with /jev:setup.",
+    "developerName": "Yusup Supriyadi",
+    "category": "Developer Tools",
+    "capabilities": ["Read"],
+    "websiteURL": "https://github.com/yusupsupriyadi/jev-skill"
+  }
+}

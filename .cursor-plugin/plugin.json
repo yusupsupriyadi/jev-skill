@@ -1,0 +1,14 @@
+{
+  "name": "jev",
+  "displayName": "Jev",
+  "version": "0.3.0",
+  "description": "Structured decisions for coding agents: which installed skill fits the request, and what is wrong with the change a turn just made.",
+  "author": {
+    "name": "Yusup Supriyadi"
+  },
+  "homepage": "https://github.com/yusupsupriyadi/jev-skill",
+  "repository": "https://github.com/yusupsupriyadi/jev-skill",
+  "license": "MIT",
+  "keywords": ["jev", "typesafe", "openrouter", "routing", "decisions"],
+  "skills": "./skills/"
+}

@@ -1,4 +1,5 @@
 ---
+name: jev-judge
 description: Have Jev judge the current uncommitted changes for unverified completion claims, missing tests, hardcoded credentials, risk level, and which reviewer fits. Use before committing, or when asked whether a change is safe or finished.
 allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/cli.mjs" *)
 ---
@@ -18,3 +19,8 @@ Act on the findings, in this order:
 5. **Reviewer suggested**: dispatch that subagent if the change warrants it.
 
 Findings are advisory and calibrated. A low-confidence finding is worth a sentence, not a refactor.
+
+## Running the CLI on another agent
+
+The commands above locate the jev CLI through `${CLAUDE_PLUGIN_ROOT}`, which Claude Code sets. On any
+other agent, set `JEV_HOME` to this plugin directory and run `node "$JEV_HOME/scripts/cli.mjs"` instead.

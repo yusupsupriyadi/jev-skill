@@ -1,4 +1,5 @@
 ---
+name: jev-setup
 description: Connect jev to a Jev provider in one pass - pick TypeSafe or OpenRouter, paste a key, verify it live, save it. Use when jev has no API key, when a key was rotated, or when switching provider.
 argument-hint: [typesafe|openrouter]
 allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/cli.mjs" *), AskUserQuestion
@@ -46,3 +47,8 @@ try the other provider or a different key.
 - Switch provider or replace a rotated key: run this skill again.
 - Forget the stored key: `node "${CLAUDE_PLUGIN_ROOT}/scripts/cli.mjs" setup --reset`
 - An environment variable, `TYPESAFE_API_KEY` or `OPENROUTER_API_KEY`, always wins over the stored key.
+
+## Running the CLI on another agent
+
+The commands above locate the jev CLI through `${CLAUDE_PLUGIN_ROOT}`, which Claude Code sets. On any
+other agent, set `JEV_HOME` to this plugin directory and run `node "$JEV_HOME/scripts/cli.mjs"` instead.

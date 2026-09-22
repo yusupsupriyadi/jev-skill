@@ -10,6 +10,7 @@ import { consumeJudgment, renderRoute, route, shouldSkipPrompt } from './hooks/r
 import { alreadyJudged, judge, markJudged, storeJudgment } from './hooks/judge.mjs';
 import { PROVIDERS, PROVIDER_IDS } from './lib/providers.mjs';
 import { clearStore, probeProvider, runSetup } from './lib/setup.mjs';
+import { detectHost, detectPlatforms, getPlatform } from './lib/platforms.mjs';
 
 function parseFlags(argv) {
   const flags = {};
@@ -199,6 +200,11 @@ async function cmdDoctor() {
   console.log('  node:        ' + process.version);
   console.log('  config dir:  ' + config.configDir);
   console.log('  data dir:    ' + config.dataDir);
+  const host = detectHost();
+  const hostPlatform = host ? getPlatform(host) : null;
+  console.log('  host agent:  ' + (hostPlatform ? hostPlatform.label : 'unknown, scanning every agent'));
+  const present = detectPlatforms({ cwd: config.cwd, configDir: config.configDir });
+  console.log('  agents here: ' + (present.length ? present.join(', ') : 'none found'));
   console.log('  provider:    ' + config.providerLabel + ' (' + config.providerReason + ')');
   console.log('  api url:     ' + config.apiUrl);
   console.log('  model:       ' + config.model);

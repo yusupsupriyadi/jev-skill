@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Runs on any agent that reads the cross-agent `SKILL.md` convention, not only Claude Code. Manifests ship for Codex, Cursor and Kimi Code, plus a cross-agent marketplace.
+- Skill discovery follows the host agent. A skill installed for one agent is never suggested to a host that cannot load it, and `JEV_PLATFORM` names the host when it cannot be detected.
+- Every skill now carries a `name` field, which the cross-agent installer requires. Without it `npx skills add` rejected all five.
+- `/jev:doctor` reports the host agent and every skills directory it found.
+
 ## 0.2.0
 
 - Reach Jev through the TypeSafe API directly, not just OpenRouter. Same request shape, different endpoint, key, and model slug.
