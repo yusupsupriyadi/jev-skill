@@ -84,11 +84,7 @@ async function askChunks(chunks, kind, common) {
   return settled.filter((s) => s.status === 'fulfilled').map((s) => s.value);
 }
 
-/**
- * Picks a skill for a prompt with a stateless tournament: every catalog chunk votes in
- * parallel, then the chunk winners run off against each other. Nothing to cache or
- * invalidate, and no skill is missed because a domain label was wrong.
- */
+/** Chunks vote in parallel and the winners run off, because one choice caps at 255 options. */
 export async function route({ prompt, config, log = () => {}, sessionId = null }) {
   const catalog = discoverCatalog({
     configDir: config.configDir,

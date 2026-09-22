@@ -95,11 +95,7 @@ export function readEnabledPlugins({ configDir, cwd }) {
   return [...enabled.entries()].filter(([, on]) => on).map(([name]) => name);
 }
 
-/**
- * Picks the install path for a plugin. installed_plugins.json v2 keeps one entry per
- * scope, and some plugins exist only at project scope, so prefer an entry whose
- * projectPath contains the cwd before falling back to the user-scope entry.
- */
+/** Prefers a project-scope entry covering the cwd, since some plugins are installed only there. */
 export function resolveInstallPath(entries, cwd) {
   if (!Array.isArray(entries) || entries.length === 0) return null;
   const normalized = path.resolve(cwd).toLowerCase();
@@ -209,11 +205,7 @@ function collectProjectLocal(cwd, includeAgents) {
   return entries;
 }
 
-/**
- * Discovers every skill, command, and agent Claude could invoke in this session.
- * Plugins loaded with --plugin-dir are absent from the registry and cannot be found
- * automatically; JEV_EXTRA_PLUGIN_DIRS lets a user add those by hand.
- */
+/** Plugins loaded with --plugin-dir are absent from the registry; JEV_EXTRA_PLUGIN_DIRS adds them. */
 export function discoverCatalog({ configDir, cwd, includeAgents = true, routeExclude = [], extraPluginDirs = [] }) {
   const entries = [];
   const enabled = readEnabledPlugins({ configDir, cwd });

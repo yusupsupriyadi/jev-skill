@@ -48,11 +48,7 @@ export function makeLogger(config) {
   };
 }
 
-/**
- * Emits the hook's JSON result. This is the ONLY thing allowed on stdout:
- * on UserPromptSubmit and SessionStart, plain stdout text is injected into
- * Claude's context, so stray logging would become instructions.
- */
+/** Nothing else may reach stdout: on UserPromptSubmit and SessionStart it becomes Claude context. */
 export function emit(payload) {
   if (!payload) return;
   // A synchronous write guarantees the bytes land even if the process exits right after.
@@ -82,12 +78,8 @@ export function sessionStartContext(text) {
 }
 
 /**
- * Runs a hook body so that any failure exits 0 with no output (fail-open).
- *
- * The exit is deliberately not a bare process.exit(). Calling it while fetch is still
- * tearing a socket down aborts the process on Windows with a libuv assertion, which
- * Claude Code would see as a hook crash. Instead the process is left to end on its own,
- * with an unref'd timer as the backstop for undici's keep-alive sockets.
+ * Fail-open: any failure exits 0 with no output.
+ * A bare process.exit() here aborts on Windows with a libuv assertion while fetch closes a socket.
  */
 export async function runHook(name, body) {
   try {

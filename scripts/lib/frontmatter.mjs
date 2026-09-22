@@ -19,11 +19,7 @@ function coerce(value) {
   return value;
 }
 
-/**
- * Parses the YAML frontmatter of a SKILL.md / command / agent file.
- * Handles scalars, quoted scalars, and folded (>) or literal (|) blocks, which is
- * everything the skill and agent formats use for the fields this plugin reads.
- */
+/** Handles scalars, quoted scalars, and folded or literal blocks, all these formats use. */
 export function parseFrontmatter(text) {
   if (typeof text !== 'string') return {};
   const lines = text.split(/\r?\n/);
