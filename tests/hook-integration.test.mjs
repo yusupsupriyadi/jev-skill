@@ -108,7 +108,10 @@ test('the route hook emits only UserPromptSubmit JSON carrying the suggestion', 
     assert.equal(result.status, 0);
     const payload = JSON.parse(result.stdout);
     assert.equal(payload.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
-    assert.match(payload.hookSpecificOutput.additionalContext, /demo:debug \(confidence 0\.91\)/);
+    assert.match(
+      payload.hookSpecificOutput.additionalContext,
+      /demo:debug \(0\.91 of the vote, 1\.00 that some skill fits\)/,
+    );
     assert.match(payload.hookSpecificOutput.additionalContext, /standard/);
     assert.ok(requests.some((r) => r.questions.is_task), 'triage ran');
     assert.ok(requests.some((r) => r.questions.pick), 'candidates ran');

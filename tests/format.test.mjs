@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findingsFrom, formatJudgmentRecall, formatRouteContext, riskLabel, sizeLabel } from '../scripts/lib/format.mjs';
+import {
+  findingsFrom, formatJudgmentRecall, formatRouteContext, formatRunnerUp, riskLabel, sizeLabel,
+} from '../scripts/lib/format.mjs';
 
 const noul = (value) => ({ type: 'noul', noul: value });
 const score = (value, confidence = 0.9) => ({ type: 'score', score: value, confidence });
@@ -40,20 +42,30 @@ test('score labels map onto their rubric', () => {
   assert.equal(riskLabel(null), null);
 });
 
-test('the route block names the pick, its confidence, and its advisory status', () => {
+test('the route block separates the winner share from the chance any skill fits', () => {
   const text = formatRouteContext({
     pick: 'superpowers:test-driven-development',
     description: 'Write the test first',
     confidence: 0.84,
+    relevance: 1,
+    runnerUp: 'ecc:tdd-workflow (0.12)',
     agent: 'ecc:code-reviewer',
     agentConfidence: 0.7,
     size: 'standard',
     sizeConfidence: 0.77,
   });
-  assert.match(text, /superpowers:test-driven-development \(confidence 0\.84\)/);
+  assert.match(text, /superpowers:test-driven-development \(0\.84 of the vote, 1\.00 that some skill fits\)/);
+  assert.match(text, /Close second: ecc:tdd-workflow \(0\.12\)/);
   assert.match(text, /ecc:code-reviewer/);
   assert.match(text, /standard/);
   assert.match(text, /not an instruction/);
+});
+
+test('none is reported as relevance, never as a runner-up skill', () => {
+  const split = { choice: 'a', probabilities: { a: 0.5, none: 0.3, b: 0.2 } };
+  assert.equal(formatRunnerUp(split), 'b (0.20)');
+  const onlyNone = { choice: 'a', probabilities: { a: 0.7, none: 0.3 } };
+  assert.equal(formatRunnerUp(onlyNone), null);
 });
 
 test('recall renders nothing when there are no findings', () => {

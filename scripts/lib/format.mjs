@@ -1,4 +1,3 @@
-import { runnerUp } from './jev-client.mjs';
 import { NONE } from './questions.mjs';
 
 export const SIZE_LABELS = ['quick', 'standard', 'major'];
@@ -23,12 +22,15 @@ export function riskLabel(answer) {
 }
 
 /** The block injected into Claude's context when a skill suggestion clears the bar. */
-export function formatRouteContext({ pick, description, confidence, agent, agentConfidence, size, sizeConfidence }) {
+export function formatRouteContext({
+  pick, description, confidence, relevance, runnerUp, agent, agentConfidence, size, sizeConfidence,
+}) {
   const lines = [];
   lines.push(
-    '[jev] Suggested skill for this request: ' + pick + ' (confidence ' + pct(confidence) + ').'
-    + (description ? ' ' + description : ''),
+    '[jev] Suggested skill for this request: ' + pick + ' (' + pct(confidence) + ' of the vote, '
+    + pct(relevance) + ' that some skill fits).' + (description ? ' ' + description : ''),
   );
+  if (runnerUp) lines.push('[jev] Close second: ' + runnerUp + '.');
   if (agent && agent !== NONE) {
     lines.push('[jev] Suggested subagent: ' + agent + ' (confidence ' + pct(agentConfidence) + ').');
   }
@@ -39,9 +41,14 @@ export function formatRouteContext({ pick, description, confidence, agent, agent
   return lines.join('\n');
 }
 
+/** The strongest skill behind the winner. "none" is skipped: it is reported as relevance. */
 export function formatRunnerUp(answer) {
-  const second = runnerUp(answer);
-  return second ? second.option + ' (' + pct(second.probability) + ')' : null;
+  if (!answer || !answer.probabilities) return null;
+  const second = Object.entries(answer.probabilities)
+    .filter(([option]) => option !== answer.choice && option !== NONE)
+    .sort((a, b) => b[1] - a[1])[0];
+  if (!second || second[1] <= 0) return null;
+  return second[0] + ' (' + pct(second[1]) + ')';
 }
 
 /**
