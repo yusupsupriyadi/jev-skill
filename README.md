@@ -25,6 +25,52 @@ writing. Claude still does all the work; Jev only decides.
 
 Everything is advisory. No hook ever blocks a tool call or stops Claude from finishing.
 
+## Why use it
+
+Four reasons, with the numbers taken from a real install of 537 skills, commands, and subagents.
+
+**The skill you installed months ago actually fires.** A well equipped Claude Code install carries
+hundreds of skills. Claude does see their descriptions, but picking one out of 537 is a side task
+while it is busy doing the work you asked for. Jev does nothing else. On a sample of six Indonesian
+prompts it named a sensible skill every time, including `vercel:deploy` for a deploy request and
+`ecc:security-review` for a security review. Six prompts is a small sample, so treat it as a smoke
+test rather than a benchmark.
+
+**A number you can set a threshold on.** Claude chooses a skill silently and you never learn how
+sure it was. Jev returns the whole distribution, so a clear case and a close call look different:
+
+| Request | Pick | Share of the vote |
+|---|---|---|
+| review keamanan endpoint upload | `ecc:security-review` | 0.99 |
+| perbaiki bug login di safari | `ecc:orch-fix-defect` | 0.53, with `superpowers:systematic-debugging` at 0.46 |
+
+Raise `route_min_confidence` and only the clear ones reach you.
+
+**A check that compares the claim against the record.** The judgment asks fixed questions: did a
+verification command run and pass, does the diff need a test, did a credential go in, how risky is
+this. It gets Claude's closing message on one side and the commands the turn actually ran on the
+other, and answers each question on its own. None of the turn's reasoning reaches it, so a turn
+that reports success without running anything reads as exactly that.
+
+**It cannot invent an answer.** Jev picks from the options you hand it. Ask a chat model which skill
+to use and it can return a plausible name you have never installed. Jev can only return one of
+yours, or `none`.
+
+### What that costs
+
+| | Measured on this install |
+|---|---|
+| Catalog read per routed prompt | 537 entries, roughly 27,000 tokens |
+| Routing | about $0.0004, 1.5 to 4 seconds |
+| One judgment | $0.00026 |
+| Connection probe | 740 ms |
+
+### When it is not worth it
+
+If you run a handful of skills you do not need help choosing between them. If you always type
+`/skill-name` yourself, routing adds nothing, and prompts beginning with `/` are skipped anyway.
+The judgment still earns its place at any catalog size.
+
 ## Install
 
 Two commands, then one skill. Nothing to edit by hand.
@@ -62,14 +108,11 @@ key in through `/plugin`. An environment variable always wins over a stored key.
 Without a key the plugin stays completely idle. It never errors, never blocks, and never injects
 anything. Check anything at any time with `/jev:doctor`.
 
-## Cost
+## Keeping the cost down
 
-Routing sends your prompt plus the description of every installed skill. Measured against a
-537-entry catalog: about $0.0004 per routed prompt across five parallel calls, taking 1.5 to 4
-seconds. A judgment measured $0.00026. Short prompts, acknowledgements, and anything starting with
-`/` are skipped before any call is made.
-
-To cut the bill, exclude namespaces you never route to:
+Short prompts, acknowledgements, and anything starting with `/` are skipped before any call is
+made. Routing sends your prompt plus the description of every installed skill, so the bill scales
+with the catalog. To shrink it, exclude namespaces you never route to:
 
 ```bash
 export JEV_ROUTE_EXCLUDE="ecc:,vercel:"
