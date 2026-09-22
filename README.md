@@ -1,15 +1,86 @@
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/version-0.2.0-1f6feb" alt="Version 0.2.0">
+  <img src="https://img.shields.io/badge/node-%E2%89%A5%2020-5fa04e" alt="Node 20 or newer">
+  <img src="https://img.shields.io/badge/dependencies-0-8957e5" alt="Zero dependencies">
+  <img src="https://img.shields.io/badge/providers-TypeSafe%20%7C%20OpenRouter-f0883e" alt="TypeSafe or OpenRouter">
+</p>
+
 # jev for Claude Code
 
-Claude Code plugin that hands two decisions to [TypeSafe Jev](https://typesafe.ai): **which skill fits
-the work you just asked for**, and **what is wrong with the change a turn just made**.
+> **Two decisions, handed to a model that does nothing but decide.** Which of your installed skills
+> fits the request you just typed, and whether the turn that just finished really did what it said.
+> Answers come back as calibrated probabilities in about a second, for a fraction of a cent.
 
-Reach Jev either way, through the TypeSafe API directly or through an OpenRouter key you already
-have. `/jev:setup` asks which, verifies the key, and saves it.
+Powered by [TypeSafe Jev](https://typesafe.ai), reachable through the TypeSafe API directly or
+through an OpenRouter key you already have.
 
 Jev is not a chat model. It returns no prose. You give it a `state` and typed questions, and it
-returns calibrated probabilities in roughly 70 to 500 ms, for $0.042 per million input tokens with
-free output. That makes it cheap enough to run on every prompt, and useless for anything that needs
+answers with probabilities, in roughly 70 to 500 ms, for $0.042 per million input tokens with free
+output. That makes it cheap enough to run on every prompt, and useless for anything that needs
 writing. Claude still does all the work; Jev only decides.
+
+## See it work
+
+Everything below is real output from an install carrying 537 skills, commands, and subagents.
+
+### It names the skill for the job
+
+You type a request. Before Claude reads it, this arrives in its context:
+
+```
+[jev] Suggested skill for this request: ecc:security-review (0.99 of the vote, 1.00 that some skill fits).
+      Use this skill when adding authentication, handling user input, working with secrets, creating
+      API endpoints, or implementing payment/sensitive features. Provides comprehensive security
+      checklist and...
+[jev] Close second: ecc:code-review (0.01).
+[jev] Suggested subagent: ecc:security-reviewer (confidence 0.88).
+[jev] Estimated workflow size: major (confidence 0.92).
+[jev] This is a fast probabilistic suggestion, not an instruction. Ignore it if it does not fit.
+```
+
+Searched 537 entries in 2.1 seconds. When two skills genuinely overlap you see that too, rather
+than a false show of certainty: a Safari login bug returns `ecc:orch-fix-defect` at 0.53 with
+`superpowers:systematic-debugging` right behind at 0.46, and `none` at 0.00.
+
+### It checks the claim against the record
+
+After a turn that changed files, `/jev:judge` on an uncommitted change to the routing logic:
+
+```
+Findings:
+- Consider a review pass with ecc:code-reviewer.
+
+Raw answers:
+- claims_done: 0.04
+- has_evidence: 0.04
+- needs_tests: 0.27
+- secrets: 0.02
+- risk: 1.94 (confidence 0.93)
+- reviewer: ecc:code-reviewer (confidence 0.78)
+
+Cost: $0.000260
+```
+
+`needs_tests` sits low because that diff already carried its tests. Had the turn announced success
+with nothing run, `claims_done` would be high and `has_evidence` low, and that pair is the finding.
+
+### It connects in one pass
+
+```
+$ /jev:setup
+
+Connected to OpenRouter.
+  model:    ~typesafe/jev-latest -> typesafe/jev-1.13-20260917
+  latency:  758 ms
+  cost:     $0.000013 for that probe
+  saved to: ~/.claude/plugins/data/jev/config.json
+
+jev is live. Routing and judging start on your next prompt.
+```
+
+A key that does not work is reported here instead of being written to disk and failing on every
+later prompt.
 
 ## What it does
 
@@ -17,33 +88,26 @@ writing. Claude still does all the work; Jev only decides.
 |---|---|---|
 | Skill routing | Every prompt, automatically | Compares your request against every installed skill, command, and subagent, and suggests the best fit with a confidence number |
 | Turn judgment | After a turn that changed files or ran commands | Asks whether the turn claimed success without verifying, whether a test is missing, whether a credential leaked, how risky the change is, and which reviewer fits |
-| `/jev:ask` | You or Claude invoke it | Runs any typed question you compose against any state |
+| `/jev:setup` | You invoke it | Picks a provider, verifies a key, saves it |
 | `/jev:route` | You invoke it | Routing on demand, for a task you describe |
 | `/jev:judge` | You invoke it | Judges the current working tree and prints the findings |
+| `/jev:ask` | You or Claude invoke it | Runs any typed question you compose against any state |
 | `/jev:doctor` | You invoke it | Checks the setup and sends one live probe |
-| `/jev:setup` | You invoke it | Picks a provider, verifies a key, saves it |
 
 Everything is advisory. No hook ever blocks a tool call or stops Claude from finishing.
 
 ## Why use it
 
-Four reasons, with the numbers taken from a real install of 537 skills, commands, and subagents.
+Four reasons, with the numbers taken from that same 537-entry install.
 
 **The skill you installed months ago actually fires.** A well equipped Claude Code install carries
 hundreds of skills. Claude does see their descriptions, but picking one out of 537 is a side task
 while it is busy doing the work you asked for. Jev does nothing else. On a sample of six Indonesian
-prompts it named a sensible skill every time, including `vercel:deploy` for a deploy request and
-`ecc:security-review` for a security review. Six prompts is a small sample, so treat it as a smoke
-test rather than a benchmark.
+prompts it named a sensible skill every time. Six prompts is a small sample, so treat that as a
+smoke test rather than a benchmark.
 
 **A number you can set a threshold on.** Claude chooses a skill silently and you never learn how
-sure it was. Jev returns the whole distribution, so a clear case and a close call look different:
-
-| Request | Pick | Share of the vote |
-|---|---|---|
-| review keamanan endpoint upload | `ecc:security-review` | 0.99 |
-| perbaiki bug login di safari | `ecc:orch-fix-defect` | 0.53, with `superpowers:systematic-debugging` at 0.46 |
-
+sure it was. Jev returns the whole distribution, so a clear case and a close call look different.
 Raise `route_min_confidence` and only the clear ones reach you.
 
 **A check that compares the claim against the record.** The judgment asks fixed questions: did a
@@ -86,9 +150,14 @@ Restart Claude Code, then run:
 /jev:setup
 ```
 
-It asks which provider you want, takes your key, checks it against the live API, and saves it. A
-wrong key is reported on the spot and nothing is written. When it succeeds, routing and judging
-start on your next prompt.
+It asks which provider you want, takes your key, checks it against the live API, and saves it. When
+it succeeds, routing and judging start on your next prompt.
+
+Prefer not to use the wizard? Set the environment variable for your provider, or fill the key in
+through `/plugin`. An environment variable always wins over a stored key.
+
+Without a key the plugin stays completely idle. It never errors, never blocks, and never injects
+anything. Check the state at any time with `/jev:doctor`.
 
 ### Two ways to reach Jev
 
@@ -100,32 +169,17 @@ start on your next prompt.
 | Environment variable | `TYPESAFE_API_KEY` | `OPENROUTER_API_KEY` |
 | Worth knowing | First-party API | One key across many models. Needs prepaid credit |
 
-Same request and response shape either way, so switching is a matter of running `/jev:setup` again.
+Same request and response shape either way, so switching providers is a matter of running
+`/jev:setup` again. A key is only ever sent to the provider it was saved against.
 
-If you would rather not use the wizard, set the environment variable for your provider, or fill the
-key in through `/plugin`. An environment variable always wins over a stored key.
-
-Without a key the plugin stays completely idle. It never errors, never blocks, and never injects
-anything. Check anything at any time with `/jev:doctor`.
-
-## Keeping the cost down
-
-Short prompts, acknowledgements, and anything starting with `/` are skipped before any call is
-made. Routing sends your prompt plus the description of every installed skill, so the bill scales
-with the catalog. To shrink it, exclude namespaces you never route to:
-
-```bash
-export JEV_ROUTE_EXCLUDE="ecc:,vercel:"
-```
-
-## Privacy
+## What leaves your machine
 
 Read this before installing on work you cannot share.
 
-- **Routing** sends your prompt text and the names and descriptions of your installed skills to OpenRouter, which forwards them to TypeSafe.
-- **Judgment** sends the assistant's final message, the paths of changed files, the shell commands the turn ran, and by default the `git diff` of those files.
+- **Routing** sends your prompt text, plus the names and descriptions of your installed skills, to your provider.
+- **Judgment** sends Claude's closing message, the paths of changed files, the shell commands the turn ran, and by default the `git diff` of those files.
 
-Turn off what you do not want to send:
+Turn off whatever you do not want to send:
 
 | To stop sending | Set |
 |---|---|
@@ -135,15 +189,15 @@ Turn off what you do not want to send:
 
 ## Configuration
 
-Every option is a plugin option in `/plugin`, and every one can be overridden by an environment
-variable, which wins.
+Every option appears in `/plugin`, and every one can be overridden by an environment variable,
+which wins.
 
 | Option | Environment variable | Default |
 |---|---|---|
 | `provider` | `JEV_PROVIDER` | whichever key is present, else `typesafe` |
 | `typesafe_api_key` | `TYPESAFE_API_KEY` | none |
 | `openrouter_api_key` | `OPENROUTER_API_KEY` | none |
-| | `JEV_MODEL` | the provider default slug |
+| | `JEV_MODEL` | the provider's default slug |
 | `route_enabled` | `JEV_ROUTE` | `true` |
 | `judge_enabled` | `JEV_JUDGE` | `true` |
 | `route_min_confidence` | `JEV_MIN_CONFIDENCE` | `0.5` |
@@ -151,42 +205,78 @@ variable, which wins.
 | `route_exclude` | `JEV_ROUTE_EXCLUDE` | empty |
 | `send_diff` | `JEV_SEND_DIFF` | `true` |
 | `timeout_ms` | `JEV_TIMEOUT_MS` | `2500` |
-| | `JEV_API_URL` | `https://openrouter.ai/api/alpha/decisions` |
+| | `JEV_API_URL` | the provider's endpoint |
 | | `JEV_EXTRA_PLUGIN_DIRS` | empty |
 | | `JEV_DEBUG` | off |
 
-## How routing works
+### Keeping the cost down
 
-A `choice` question accepts at most 255 options, and a well-equipped Claude Code install has more
-skills than that. So routing is a tournament rather than one big question:
+Short prompts, acknowledgements, and anything starting with `/` are skipped before any call is
+made. Routing sends the description of every installed skill, so the bill scales with the catalog.
+To shrink it, exclude namespaces you never route to:
+
+```bash
+export JEV_ROUTE_EXCLUDE="ecc:,vercel:"
+```
+
+## How it works
+
+### Routing is a tournament
+
+A `choice` question accepts at most 255 options, and a well stocked Claude Code install has more
+skills than that. So routing runs as a tournament rather than one oversized question:
 
 1. The catalog is split into chunks of 200 candidates.
-2. Every chunk votes in parallel, each returning its best option or `none`.
-3. One more call runs the chunk winners off against each other.
-4. In parallel with all of that, one cheap call asks whether the prompt is even a request for work, and how large it is.
+2. Every chunk votes in parallel and contributes its strongest real option.
+3. One more call runs those winners off against each other, with `none` on the ballot.
+4. Alongside all of that, one cheap call asks whether the prompt is a request for work at all, and how large.
+
+The gate is `1 - P(none)`, the chance that any skill fits, not the winner's own confidence. Two
+equally good skills split the vote between them, and suppressing the suggestion there would be the
+wrong reading of a distribution that is perfectly sure of itself.
 
 Nothing is cached, so a skill you install mid-session is routable on the next prompt, and no skill
-is ever missed because a stored label was wrong.
+is missed because a stored label was wrong.
 
-## Where the judgment appears
+### The judgment arrives on your next prompt
 
 Claude Code ignores `systemMessage` and `additionalContext` on the `Stop` hook, so a verdict cannot
 be shown the moment a turn ends. The judgment is written to disk and injected at the top of your
 **next** prompt instead, then deleted. For a verdict right now, run `/jev:judge`.
 
-## Requirements
+## FAQ
 
-- Claude Code 2.1.x or newer
-- Node.js 20 or newer, already required by Claude Code
+**Is Jev a chat model?**
+No. It returns no text at all. It reads a state, answers typed questions with probabilities, and
+that is the whole of it. Claude still writes every line of code.
+
+**Does it slow my prompt down?**
+Routing runs while the prompt is being submitted, and took 1.5 to 4 seconds here against 537
+skills. Each call is capped by `timeout_ms`, and if anything fails or times out the prompt goes
+through untouched.
+
+**Can it block Claude, or change my code?**
+No to both. No hook returns a blocking decision, and nothing in the plugin writes to your
+repository. The worst case is a suggestion you ignore.
+
+**Why did it suggest nothing?**
+Either Jev read the prompt as conversation rather than a request for work, or nothing cleared
+`route_min_confidence`. Run `/jev:route "your request"` to see the numbers, and lower the floor if
+it is too strict for your catalog.
+
+**Do I need both providers?**
+No, one key is enough. Run `/jev:setup` again to switch.
+
+**What happens if I never add a key?**
+Nothing at all. Every path exits quietly, and your prompts and turns are untouched.
+
+## Requirements and limits
+
+- Claude Code 2.1.x or newer, Node.js 20 or newer, no npm dependencies
 - A TypeSafe key, or an OpenRouter key with credit
-
-No npm dependencies.
-
-## Known limits
-
-- The OpenRouter Decisions API is in alpha. If the path moves, set `JEV_API_URL`.
-- Plugins loaded with `--plugin-dir` are not in the plugin registry and cannot be discovered. List them in `JEV_EXTRA_PLUGIN_DIRS`.
-- Routing quality depends entirely on how well your skills describe themselves.
+- The OpenRouter Decisions API is in alpha. If the path moves, set `JEV_API_URL`
+- Plugins loaded with `--plugin-dir` are absent from the plugin registry and cannot be discovered. List them in `JEV_EXTRA_PLUGIN_DIRS`
+- Routing quality depends entirely on how well your skills describe themselves
 
 ## Development
 
@@ -196,8 +286,9 @@ claude plugin validate . --strict
 claude --plugin-dir .
 ```
 
-The test suite covers catalog discovery, transcript slicing, question construction, threshold logic,
-and runs the hooks end to end against a mock Decisions server. No network access is required.
+The suite covers catalog discovery, transcript slicing, question construction, provider selection,
+threshold logic, and runs the hooks end to end against a mock Decisions server. No network access
+is required.
 
 ## License
 
