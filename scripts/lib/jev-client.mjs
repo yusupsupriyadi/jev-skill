@@ -10,16 +10,17 @@ export class JevError extends Error {
   }
 }
 
+// Wording stays provider-neutral: the same client talks to TypeSafe and to OpenRouter.
 const STATUS_HINTS = {
   400: 'Invalid request. A question is malformed.',
-  401: 'OpenRouter rejected the API key.',
-  402: 'OpenRouter credits required. Jev has no free tier, so the key needs prepaid credit.',
+  401: 'The API key was rejected.',
+  402: 'Payment required. Jev has no free tier, so the account needs credit.',
   403: 'The key is not permitted to call this model.',
-  404: 'Model or endpoint not found. The Decisions API is alpha and the path may have moved.',
+  404: 'Model or endpoint not found. Check the model slug and the endpoint URL.',
   413: 'Payload too large. Send less state, or turn off send_diff.',
-  429: 'Rate limited by OpenRouter.',
-  500: 'OpenRouter server error.',
-  502: 'Provider error from TypeSafe.',
+  429: 'Rate limited.',
+  500: 'Server error from the provider.',
+  502: 'Upstream provider error.',
   503: 'Service unavailable.',
   524: 'Request timed out upstream.',
   529: 'Provider overloaded.',

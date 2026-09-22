@@ -8,6 +8,8 @@ import { discoverCatalog } from './lib/catalog.mjs';
 import { formatJudgeReport } from './lib/format.mjs';
 import { consumeJudgment, renderRoute, route, shouldSkipPrompt } from './hooks/route.mjs';
 import { alreadyJudged, judge, markJudged, storeJudgment } from './hooks/judge.mjs';
+import { PROVIDERS, PROVIDER_IDS } from './lib/providers.mjs';
+import { clearStore, probeProvider, runSetup } from './lib/setup.mjs';
 
 function parseFlags(argv) {
   const flags = {};
@@ -42,9 +44,75 @@ function readJsonArg(value, label) {
 
 function requireKey(config) {
   if (!config.apiKey) {
-    console.error('No OpenRouter API key. Set OPENROUTER_API_KEY, or configure the plugin with /plugin.');
+    console.error('No API key for ' + config.providerLabel + '. Run /jev:setup, or set '
+      + PROVIDERS[config.provider].envKey + '.');
     process.exit(1);
   }
+}
+
+/**
+ * Ends the process without a bare exit. Killing it while fetch is still closing a socket
+ * aborts on Windows with a libuv assertion, which looks like a crash to the caller.
+ */
+function finish(code) {
+  process.exitCode = code;
+  setTimeout(() => process.exit(code), 250).unref();
+}
+
+/** Reads a secret from stdin so it never lands in shell history or the process list. */
+function readSecretStdin() {
+  return new Promise((resolve) => {
+    let raw = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (chunk) => { raw += chunk; });
+    process.stdin.on('end', () => resolve(raw.trim()));
+    process.stdin.on('error', () => resolve(''));
+  });
+}
+
+async function cmdSetup(flags) {
+  const config = loadConfig();
+
+  if (flags.status) {
+    console.log('provider: ' + config.provider + ' (' + config.providerReason + ')');
+    console.log('key:      ' + (config.apiKey ? 'set, via ' + config.apiKeySource : 'not set'));
+    console.log('model:    ' + config.model);
+    console.log('endpoint: ' + config.apiUrl);
+    return;
+  }
+
+  if (flags.reset) {
+    console.log(clearStore(config.dataDir) ? 'Stored settings removed.' : 'Nothing stored to remove.');
+    return;
+  }
+
+  const providerId = typeof flags.provider === 'string' ? flags.provider : config.provider;
+  if (!PROVIDERS[providerId]) {
+    console.error('Unknown provider "' + providerId + '". Choose one of: ' + PROVIDER_IDS.join(', '));
+    process.exit(1);
+  }
+
+  const apiKey = flags.key === '-' ? await readSecretStdin() : flags.key;
+  const result = await runSetup({
+    providerId,
+    apiKey: typeof apiKey === 'string' ? apiKey.trim() : '',
+    dataDir: config.dataDir,
+  });
+
+  if (!result.ok) {
+    console.error(result.error);
+    for (const attempt of result.attempts || []) console.error('  ' + attempt.model + ': ' + attempt.error);
+    if (result.keyUrl) console.error('Get a key at ' + result.keyUrl);
+    finish(1);
+    return;
+  }
+
+  console.log('Connected to ' + result.providerLabel + '.');
+  console.log('  model:    ' + result.model + (result.resolvedModel !== result.model ? ' -> ' + result.resolvedModel : ''));
+  console.log('  latency:  ' + result.latencyMs + ' ms');
+  if (result.cost !== null) console.log('  cost:     $' + Number(result.cost).toFixed(6) + ' for that probe');
+  console.log('  saved to: ' + result.storedAt);
+  console.log('\njev is live. Routing and judging start on your next prompt.');
 }
 
 async function cmdDecide(flags) {
@@ -131,6 +199,7 @@ async function cmdDoctor() {
   console.log('  node:        ' + process.version);
   console.log('  config dir:  ' + config.configDir);
   console.log('  data dir:    ' + config.dataDir);
+  console.log('  provider:    ' + config.providerLabel + ' (' + config.providerReason + ')');
   console.log('  api url:     ' + config.apiUrl);
   console.log('  model:       ' + config.model);
   console.log('  routing:     ' + (config.routeEnabled ? 'on' : 'off') + ' (min confidence ' + config.routeMinConfidence + ')');
@@ -147,41 +216,35 @@ async function cmdDoctor() {
   console.log('  catalog:     ' + catalog.length + ' routable entries');
 
   if (!config.apiKey) {
-    console.log('\nSet OPENROUTER_API_KEY or configure the plugin with /plugin, then run this again.');
+    console.log('\nNo key yet. Run /jev:setup to connect ' + config.providerLabel
+      + ', or set ' + PROVIDERS[config.provider].envKey + '.');
     return;
   }
 
-  const probe = {
-    state: { text: 'The build failed with a type error.' },
-    questions: {
-      is_problem: {
-        type: 'noul',
-        instructions: 'Does this text describe something going wrong?',
-        criteria: { true: 'Reports a failure or error', false: 'Reports success or says nothing about failure' },
-      },
-    },
-  };
+  // Try the configured slug first, then the provider's other slugs, so a renamed model
+  // shows up as "use this one instead" rather than a flat failure.
+  const models = [config.model, ...config.models.filter((m) => m !== config.model)];
+  const result = await probeProvider({
+    provider: config.provider,
+    apiKey: config.apiKey,
+    apiUrl: config.apiUrl,
+    models,
+  });
 
-  for (const model of [config.model, config.fallbackModel]) {
-    try {
-      const started = Date.now();
-      const response = await decide({
-        ...probe,
-        model,
-        apiKey: config.apiKey,
-        apiUrl: config.apiUrl,
-        timeoutMs: 10000,
-      });
-      const noul = response.answers.is_problem ? response.answers.is_problem.noul : null;
-      const cost = response.usage && response.usage.cost ? response.usage.cost : 0;
-      console.log('\n  OK  ' + model + ' -> ' + (response.model || model));
-      console.log('      answer ' + noul + ', ' + (Date.now() - started) + ' ms, cost $' + Number(cost).toFixed(6));
-      return;
-    } catch (error) {
-      console.log('\n  FAIL ' + model + ': ' + (error && error.message ? error.message : String(error)));
+  if (result.ok) {
+    console.log('\n  OK  ' + result.model
+      + (result.resolvedModel !== result.model ? ' -> ' + result.resolvedModel : ''));
+    console.log('      answer ' + result.answer + ', ' + result.latencyMs + ' ms'
+      + (result.cost !== null ? ', cost $' + Number(result.cost).toFixed(6) : ''));
+    if (result.attempts.length > 0) {
+      console.log('      note: ' + result.attempts[0].model + ' failed, set JEV_MODEL to the working slug');
     }
+    return;
   }
-  console.log('\nNo model slug worked. Check credits at https://openrouter.ai/credits and the alpha endpoint path.');
+
+  for (const attempt of result.attempts) console.log('\n  FAIL ' + attempt.model + ': ' + attempt.error);
+  console.log('\nNo model slug worked on ' + config.providerLabel + '. Check the key and credit at '
+    + config.providerKeyUrl + ', or run /jev:setup to switch provider.');
 }
 
 async function hookSessionStart() {
@@ -281,8 +344,13 @@ async function main() {
       case 'doctor':
         await cmdDoctor();
         break;
+      case 'setup':
+        await cmdSetup(flags);
+        break;
       default:
-        console.log('Usage: cli.mjs <decide|route|judge|catalog|doctor|hook>');
+        console.log('Usage: cli.mjs <setup|decide|route|judge|catalog|doctor|hook>');
+        console.log('  setup --provider <typesafe|openrouter> --key <key|->');
+        console.log('  setup --status | --reset');
         console.log('  decide --state <json|@file> --questions <json|@file> [--model <slug>]');
         console.log('  route "<what you want to do>"');
         console.log('  judge [--staged] [--files a,b]');
@@ -293,7 +361,7 @@ async function main() {
   } catch (error) {
     const message = error instanceof JevError ? error.message : (error && error.message) || String(error);
     console.error('jev: ' + message);
-    process.exit(1);
+    finish(1);
   }
 }
 

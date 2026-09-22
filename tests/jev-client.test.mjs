@@ -56,7 +56,7 @@ test('a missing key fails without calling out', async () => {
   );
 });
 
-test('402 explains that credits are required', async () => {
+test('402 explains that the account needs credit', async () => {
   const fetchImpl = async () => ({ ok: false, status: 402, text: async () => '' });
   await assert.rejects(
     () => decide({
@@ -66,7 +66,7 @@ test('402 explains that credits are required', async () => {
       apiUrl: URL,
       fetchImpl,
     }),
-    /credits required/i,
+    /needs credit/i,
   );
 });
 

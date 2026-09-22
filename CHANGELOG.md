@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Reach Jev through the TypeSafe API directly, not just OpenRouter. Same request shape, different endpoint, key, and model slug.
+- `/jev:setup` connects a provider in one pass: pick, paste the key, verified live, saved. A wrong key is reported and never stored.
+- Routing now gates on whether any skill fits rather than on which one won, so two equally good skills no longer suppress the suggestion.
+- Error messages no longer name OpenRouter when talking to TypeSafe.
+
 ## 0.1.0
 
 First release.

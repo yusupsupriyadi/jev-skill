@@ -1,8 +1,8 @@
 {
   "name": "jev",
   "displayName": "Jev",
-  "version": "0.1.0",
-  "description": "Routes skill selection and post-turn code judgment through TypeSafe Jev, a structured decision model on OpenRouter. Advisory only, never blocks.",
+  "version": "0.2.0",
+  "description": "Routes skill selection and post-turn code judgment through TypeSafe Jev, a structured decision model. Works with the TypeSafe API or with OpenRouter. Advisory only, never blocks.",
   "author": {
     "name": "Yusup Supriyadi",
     "url": "https://github.com/yusupsupriyadi"
@@ -19,17 +19,23 @@
     "skill-selection"
   ],
   "userConfig": {
+    "provider": {
+      "type": "string",
+      "title": "Provider",
+      "description": "Which Jev endpoint to use: typesafe, openrouter, or auto to pick whichever key is present.",
+      "default": "auto"
+    },
+    "typesafe_api_key": {
+      "type": "string",
+      "title": "TypeSafe API key",
+      "description": "Key from console.typesafe.ai. Leave empty to use the TYPESAFE_API_KEY environment variable, or run /jev:setup.",
+      "sensitive": true
+    },
     "openrouter_api_key": {
       "type": "string",
       "title": "OpenRouter API key",
-      "description": "Key used for the OpenRouter Decisions API. Leave empty to use the OPENROUTER_API_KEY environment variable instead.",
+      "description": "Key from openrouter.ai. Leave empty to use the OPENROUTER_API_KEY environment variable, or run /jev:setup.",
       "sensitive": true
-    },
-    "model": {
-      "type": "string",
-      "title": "Jev model slug",
-      "description": "Decision model to call.",
-      "default": "~typesafe/jev-latest"
     },
     "route_enabled": {
       "type": "boolean",
