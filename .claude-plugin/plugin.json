@@ -1,0 +1,80 @@
+{
+  "name": "jev",
+  "displayName": "Jev",
+  "version": "0.1.0",
+  "description": "Routes skill selection and post-turn code judgment through TypeSafe Jev, a structured decision model on OpenRouter. Advisory only, never blocks.",
+  "author": {
+    "name": "Yusup Supriyadi",
+    "url": "https://github.com/yusupsupriyadi"
+  },
+  "homepage": "https://github.com/yusupsupriyadi/jev-skill",
+  "repository": "https://github.com/yusupsupriyadi/jev-skill",
+  "license": "MIT",
+  "keywords": [
+    "jev",
+    "typesafe",
+    "openrouter",
+    "routing",
+    "decisions",
+    "skill-selection"
+  ],
+  "userConfig": {
+    "openrouter_api_key": {
+      "type": "string",
+      "title": "OpenRouter API key",
+      "description": "Key used for the OpenRouter Decisions API. Leave empty to use the OPENROUTER_API_KEY environment variable instead.",
+      "sensitive": true
+    },
+    "model": {
+      "type": "string",
+      "title": "Jev model slug",
+      "description": "Decision model to call.",
+      "default": "~typesafe/jev-latest"
+    },
+    "route_enabled": {
+      "type": "boolean",
+      "title": "Suggest a skill for each prompt",
+      "description": "Ask Jev which installed skill fits the prompt and inject the suggestion as context.",
+      "default": true
+    },
+    "judge_enabled": {
+      "type": "boolean",
+      "title": "Judge each turn",
+      "description": "After a turn that changed files or ran commands, ask Jev about unverified completion claims, missing tests, and risk. The verdict is shown at the start of the next turn.",
+      "default": true
+    },
+    "route_min_confidence": {
+      "type": "number",
+      "title": "Minimum routing confidence",
+      "description": "Suppress skill suggestions below this confidence.",
+      "min": 0,
+      "max": 1,
+      "default": 0.5
+    },
+    "include_agents": {
+      "type": "boolean",
+      "title": "Also suggest subagents",
+      "description": "Include installed subagents as routing candidates.",
+      "default": true
+    },
+    "route_exclude": {
+      "type": "string",
+      "title": "Excluded namespaces",
+      "description": "Comma-separated skill/plugin name prefixes to keep out of routing, for example: ecc:,vercel:"
+    },
+    "send_diff": {
+      "type": "boolean",
+      "title": "Send the diff when judging",
+      "description": "Include the git diff of changed files in the judgment request. Turn off to send only file paths and line counts.",
+      "default": true
+    },
+    "timeout_ms": {
+      "type": "number",
+      "title": "Per-request timeout (ms)",
+      "description": "How long a single Jev call may take inside a hook.",
+      "min": 500,
+      "max": 30000,
+      "default": 2500
+    }
+  }
+}

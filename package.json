@@ -1,0 +1,14 @@
+{
+  "name": "jev-claude-code",
+  "version": "0.1.0",
+  "description": "Claude Code plugin that routes skill selection and post-turn judgment through TypeSafe Jev on OpenRouter",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\""
+  }
+}

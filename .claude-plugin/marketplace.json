@@ -1,0 +1,26 @@
+{
+  "name": "jev-skill",
+  "owner": {
+    "name": "Yusup Supriyadi",
+    "url": "https://github.com/yusupsupriyadi"
+  },
+  "description": "TypeSafe Jev integration for Claude Code",
+  "plugins": [
+    {
+      "name": "jev",
+      "source": "./",
+      "description": "Routes skill selection and post-turn code judgment through TypeSafe Jev, a structured decision model on OpenRouter. Advisory only, never blocks.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Yusup Supriyadi",
+        "url": "https://github.com/yusupsupriyadi"
+      },
+      "homepage": "https://github.com/yusupsupriyadi/jev-skill",
+      "repository": "https://github.com/yusupsupriyadi/jev-skill",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["jev", "typesafe", "openrouter", "routing", "decisions"],
+      "tags": ["routing", "decisions", "openrouter"]
+    }
+  ]
+}
