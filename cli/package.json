@@ -1,0 +1,42 @@
+{
+  "name": "jev-ai",
+  "version": "0.4.0",
+  "description": "Interactive installer for jev: typed decisions for coding agents, from TypeSafe Jev. Installs the skills into Claude Code, Codex, Cursor, Gemini CLI, and more.",
+  "type": "module",
+  "bin": {
+    "jev-ai": "index.mjs"
+  },
+  "license": "MIT",
+  "author": "Yusup Supriyadi",
+  "homepage": "https://github.com/yusupsupriyadi/jev-skill",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yusupsupriyadi/jev-skill.git",
+    "directory": "cli"
+  },
+  "keywords": [
+    "jev",
+    "typesafe",
+    "openrouter",
+    "agent-skills",
+    "claude-code",
+    "codex",
+    "skill-routing"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "index.mjs",
+    "lib/",
+    "bundle/"
+  ],
+  "scripts": {
+    "sync": "node scripts/sync.mjs",
+    "prepublishOnly": "npm run sync"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.8.1",
+    "picocolors": "^1.1.1"
+  }
+}

@@ -1,0 +1,4 @@
+node_modules/
+# written by scripts/sync.mjs before each publish
+bundle/
+LICENSE
