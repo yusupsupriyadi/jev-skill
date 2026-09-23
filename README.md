@@ -99,6 +99,9 @@ later prompt.
 
 Everything is advisory. No hook ever blocks a tool call or stops Claude from finishing.
 
+The slash names are how Claude Code calls the skills. Other agents know them as `jev-setup`,
+`jev-route`, `jev-judge`, `jev-ask`, and `jev-doctor`.
+
 ## Why use it
 
 Four reasons, with the numbers taken from that same 537-entry install.
@@ -140,34 +143,48 @@ The judgment still earns its place at any catalog size.
 
 ## Install
 
-Two commands, then one skill. Nothing to edit by hand.
+One command, for any agent:
 
 ```bash
-claude plugin marketplace add yusupsupriyadi/jev-skill
-claude plugin install jev@jev-skill
+npx jev-ai
 ```
 
-Restart Claude Code, then run:
+It asks where jev should go (this project, or every project on the machine), which agents get
+it, and whether to connect a key now. Then it copies the five skills into each agent's skills
+folder and the CLI they call into `~/.jev`, with that path written into every skill, so there is
+nothing to set afterwards. Agents whose folder it finds are ticked for you. Run it again to
+update: it shows the version on disk next to the one it carries before it overwrites anything.
 
-```
-/jev:setup
-```
+For Claude Code it offers the plugin instead of plain skills, and recommends it, because only the
+plugin brings the two hooks:
 
-It asks which provider you want, takes your key, checks it against the live API, and saves it. When
-it succeeds, routing and judging start on your next prompt.
+| | Claude Code, as a plugin | Every other agent, or Claude Code with skills only |
+|---|---|---|
+| `jev-setup`, `jev-ask`, `jev-route`, `jev-judge`, `jev-doctor` | Yes | Yes |
+| A skill suggestion on every prompt | Yes | No |
+| A judgment after every turn | Yes | No |
 
-Prefer not to use the wizard? Set the environment variable for your provider, or fill the key in
-through `/plugin`. An environment variable always wins over a stored key.
+Both automatic parts need a hook that fires when a prompt is submitted or a turn ends, and those
+are Claude Code hook events. Everywhere else jev runs when you ask for it, which is what the five
+skills are for.
 
-Claude Code hands `/plugin` options only to hooks, never to the commands a skill runs. So jev
-copies them into its own store at the start of each session, and a key entered there reaches
-`/jev:ask`, `/jev:doctor`, and the rest from the next session on. The store is
-`~/.claude/plugins/data/jev/config.json`, readable by your user only, and `/jev:setup` writes
-the same file. On macOS that is a copy outside the Keychain. If you want the key in neither
-place, use the environment variable.
+### Connect a key
 
-Without a key the plugin stays completely idle. It never errors, never blocks, and never injects
-anything. Check the state at any time with `/jev:doctor`.
+The installer offers this as its last step. To do it later, run the `jev-setup` skill
+(`/jev:setup` in Claude Code). It asks which provider you want, takes your key, checks it against
+the live API, and saves it; a key that does not work is reported and never saved. Or set
+`TYPESAFE_API_KEY` or `OPENROUTER_API_KEY` in your shell profile. An environment variable always
+wins over a stored key.
+
+Without a key jev stays completely idle. It never errors, never blocks, and never injects
+anything. Check the state at any time with the `jev-doctor` skill.
+
+In Claude Code you can also fill the key in through `/plugin`. Claude Code hands those options
+only to hooks, never to the commands a skill runs, so jev copies them into its own store at the
+start of each session, and the skills see the key from the next session on. The store is
+`~/.claude/plugins/data/jev/config.json`, readable by your user only, and `jev-setup` writes the
+same file. On macOS that is a copy outside the Keychain. If you want the key in neither place, use
+the environment variable.
 
 ### Two ways to reach Jev
 
@@ -180,38 +197,19 @@ anything. Check the state at any time with `/jev:doctor`.
 | Worth knowing | First-party API | One key across many models. Needs prepaid credit |
 
 Same request and response shape either way, so switching providers is a matter of running
-`/jev:setup` again. A key is only ever sent to the provider it was saved against.
+`jev-setup` again. A key is only ever sent to the provider it was saved against.
 
-## Other agents
+### Other ways to install
 
-The skills follow the cross-agent `SKILL.md` convention, so they install anywhere that standard is
-read. What differs between agents is how much runs by itself.
-
-| | Claude Code | Every other agent |
+| Route | Command | Then |
 |---|---|---|
-| `/jev:setup`, `/jev:ask`, `/jev:route`, `/jev:judge`, `/jev:doctor` | Yes | Yes |
-| Routing on every prompt | Yes | No |
-| Judgment after every turn | Yes | No |
+| Claude Code plugin | `claude plugin marketplace add yusupsupriyadi/jev-skill`, then `claude plugin install jev@jev-skill` | Nothing: this is what the installer runs when you pick the plugin |
+| skills.sh | `npx skills add yusupsupriyadi/jev-skill` | It copies the skills but not the CLI. Clone this repository and set `JEV_HOME` to the clone |
+| Codex | `codex plugin marketplace add yusupsupriyadi/jev-skill`, then `codex plugin add jev@jev-skill` | Set `JEV_HOME` to the plugin's folder |
+| Kimi Code | `/plugins install https://github.com/yusupsupriyadi/jev-skill` | Set `JEV_HOME` to the plugin's folder |
+| Cursor | Add the marketplace through Cursor's Customize interface | Set `JEV_HOME` to the plugin's folder |
 
-Routing by itself needs a hook that fires when a prompt is submitted, and automatic judgment needs
-one that fires when a turn ends. Both are Claude Code hook events. Everywhere else jev runs when
-you ask it to, which is what the five skills are for.
-
-Install into any agent's skills directory:
-
-```bash
-npx skills add yusupsupriyadi/jev-skill
-```
-
-Or through the agent's own plugin command:
-
-| Agent | Command |
-|---|---|
-| Codex | `codex plugin marketplace add yusupsupriyadi/jev-skill`, then `codex plugin add jev@jev-skill` |
-| Kimi Code | `/plugins install https://github.com/yusupsupriyadi/jev-skill` |
-| Cursor | Add the marketplace through Cursor's Customize interface |
-
-Where the skills land:
+### Where the skills land
 
 | Agent | Project | Global |
 |---|---|---|
@@ -227,15 +225,19 @@ Where the skills land:
 
 jev scans only the directories belonging to the agent running it, so a skill installed for one
 agent is never suggested to a host that cannot load it. Claude Code identifies itself through its
-environment; for any other agent set `JEV_PLATFORM`. `npx skills add` installs the skill folders
-but not the `scripts/` directory the CLI lives in, so clone this repository as well and set
-`JEV_HOME` to the clone. Run `/jev:doctor` to see which agent jev thinks it is running under
-and which skills directories it found.
+environment; for any other agent set `JEV_PLATFORM`. The `jev-doctor` skill shows which agent jev
+thinks it is running under and which skills directories it found.
 
-**What is verified:** Claude Code, end to end, on Windows, plus a clean install through
-`npx skills add`. The other agents follow the published skills convention and their manifests ship
-in this repo, but no live install on them has been confirmed. If you run jev on one, an issue
-saying whether it worked is welcome.
+### Remove
+
+- Installed with `npx jev-ai`: delete the `jev-*` folders from each agent's skills folder, and `~/.jev`.
+- The Claude Code plugin: `claude plugin uninstall jev@jev-skill`.
+- The stored key: `node ~/.jev/scripts/cli.mjs setup --reset` before you delete `~/.jev`, or delete `~/.claude/plugins/data/jev/config.json`.
+
+**What is verified:** Claude Code as a plugin, end to end, on Windows, plus a clean install
+through `npx skills add`. What `npx jev-ai` writes is covered by tests, including a run of the
+copied CLI. The other agents follow the published skills convention, but no live install on them
+has been confirmed. If you run jev on one, an issue saying whether it worked is welcome.
 
 ## What leaves your machine
 
@@ -358,8 +360,20 @@ claude --plugin-dir .
 ```
 
 The suite covers catalog discovery, transcript slicing, question construction, provider selection,
-threshold logic, and runs the hooks end to end against a mock Decisions server. No network access
-is required.
+threshold logic, and what the installer writes, and runs the hooks end to end against a mock
+Decisions server. No network access is required.
+
+The installer lives in `cli/` as its own package, because it needs two dependencies the plugin
+does without. To run it from a clone:
+
+```bash
+cd cli
+npm install
+node index.mjs
+```
+
+`npm publish` there runs `npm run sync` first, which copies `skills/` and `scripts/` into
+`cli/bundle/` and refuses to go on if `cli/package.json` and the plugin carry different versions.
 
 ## License
 

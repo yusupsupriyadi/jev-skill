@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `npx jev-ai` installs jev into any agent in one pass: where it goes, which agents, and a key. It copies the CLI to `~/.jev` and writes that path into every skill, so `JEV_HOME` is no longer needed on that route. For Claude Code it offers the plugin, hooks included, and runs the two `claude plugin` commands itself.
+- The README's install guide covers every agent in one place instead of starting from Claude Code.
+
 ## 0.4.0
 
 - A key saved by `/jev:setup` now reaches the routing and judging hooks. Before, setup wrote it where only the `/jev:*` commands looked, so automatic routing and judging stayed idle after setup reported success.
