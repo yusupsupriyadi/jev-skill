@@ -1,6 +1,6 @@
 ---
 name: jev-setup
-description: Connect jev to a Jev provider in one pass - pick TypeSafe or OpenRouter, paste a key, verify it live, save it. Use when jev has no API key, when a key was rotated, or when switching provider.
+description: Connect jev to a Jev provider in one pass - pick TypeSafe or OpenRouter, paste a key, verify it live, save it. Use when jev has no API key, when a key was rotated or rejected, or when switching provider.
 argument-hint: [typesafe|openrouter]
 allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/cli.mjs" *), AskUserQuestion
 ---
@@ -27,7 +27,9 @@ header "Provider", one question, these two options:
 - **OpenRouter** - one key for many models, handy if the user already has one. Needs prepaid credit. Key from https://openrouter.ai/settings/keys
 
 **3. Get the key.** Ask the user to paste the key for the provider they chose, and give them the
-matching link above. Say that you will verify it before anything is saved.
+matching link above. Say that you will verify it before anything is saved. If they would rather
+not paste a key into the chat, they can set `TYPESAFE_API_KEY` or `OPENROUTER_API_KEY` in their
+shell profile and restart the agent instead. Nothing needs saving then; stop here.
 
 **4. Save it.** Run exactly this, substituting the provider id and the pasted key:
 
@@ -35,20 +37,25 @@ matching link above. Say that you will verify it before anything is saved.
 printf '%s' 'PASTED_KEY' | node "${CLAUDE_PLUGIN_ROOT}/scripts/cli.mjs" setup --provider PROVIDER_ID --key -
 ```
 
-The key goes in through stdin so it never becomes a command-line argument. Never write it to a
-file in the project, never echo it back, and never put it in a commit.
+The key goes in through stdin so it never becomes a command-line argument of a running process.
+Never write it to a file in the project, never echo it back, and never put it in a commit.
 
 **5. Report.** On success, tell the user which provider answered, the latency, and that routing and
 judging begin on their next prompt. On failure, show the reason the command printed, and offer to
-try the other provider or a different key.
+try the other provider or a different key. A key that fails is never saved.
 
 ## If the user wants to change something later
 
 - Switch provider or replace a rotated key: run this skill again.
 - Forget the stored key: `node "${CLAUDE_PLUGIN_ROOT}/scripts/cli.mjs" setup --reset`
-- An environment variable, `TYPESAFE_API_KEY` or `OPENROUTER_API_KEY`, always wins over the stored key.
+- An environment variable, `TYPESAFE_API_KEY` or `OPENROUTER_API_KEY`, always wins over a stored key.
+- A key entered through `/plugin` works as well. jev copies it into its own store when the next
+  session starts, so these commands can read it too.
 
 ## Running the CLI on another agent
 
-The commands above locate the jev CLI through `${CLAUDE_PLUGIN_ROOT}`, which Claude Code sets. On any
-other agent, set `JEV_HOME` to this plugin directory and run `node "$JEV_HOME/scripts/cli.mjs"` instead.
+Claude Code fills in `${CLAUDE_PLUGIN_ROOT}` and runs the line starting with `!` before you read
+this, putting its output in its place. On any other agent that line arrives as plain text: run
+the command yourself with `$JEV_HOME` in place of `${CLAUDE_PLUGIN_ROOT}`, where `JEV_HOME` is a
+clone of https://github.com/yusupsupriyadi/jev-skill. `npx skills add` copies the skill folders
+but not the `scripts/` directory the CLI lives in.
