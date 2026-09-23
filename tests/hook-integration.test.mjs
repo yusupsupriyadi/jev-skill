@@ -6,6 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { storeDirFor } from '../scripts/lib/config.mjs';
+import { saveStore } from '../scripts/lib/setup.mjs';
 
 const CLI = fileURLToPath(new URL('../scripts/cli.mjs', import.meta.url));
 
@@ -235,4 +237,67 @@ test('the Stop hook writes a judgment file and stays silent on stdout', async ()
   } finally {
     server.close();
   }
+});
+
+test('the route hook finds a key that /jev:setup saved from a skill', async () => {
+  const { configDir, dataDir } = fixtureConfigDir();
+  // /jev:setup runs through Bash, which never sees CLAUDE_PLUGIN_DATA.
+  saveStore(storeDirFor(configDir), { provider: 'openrouter', api_key: 'sk-or-from-setup' });
+  const { server, requests, url } = await startServer((body) => (body.questions.is_task
+    ? { answers: { is_task: { type: 'noul', noul: 0.97 } } }
+    : { answers: { pick: { type: 'choice', choice: 'demo:debug', confidence: 0.9, probabilities: { 'demo:debug': 0.9 } } } }));
+
+  try {
+    const result = await runHook(['hook', 'route'], {
+      hook_event_name: 'UserPromptSubmit',
+      user_prompt: 'tolong perbaiki bug login yang gagal di safari',
+      session_id: 'sess-5',
+    }, {
+      OPENROUTER_API_KEY: '',
+      JEV_API_URL: url,
+      CLAUDE_CONFIG_DIR: configDir,
+      CLAUDE_PLUGIN_DATA: dataDir,
+      JEV_INCLUDE_AGENTS: 'false',
+    });
+    assert.equal(result.status, 0);
+    assert.ok(requests.length > 0, 'the hook called Jev with the stored key');
+    assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /demo:debug/);
+  } finally {
+    server.close();
+  }
+});
+
+test('a key entered through /plugin reaches the skill commands once a session starts', async () => {
+  const { configDir, dataDir } = fixtureConfigDir();
+  const hook = await runHook(['hook', 'session-start'], { hook_event_name: 'SessionStart' }, {
+    OPENROUTER_API_KEY: '',
+    CLAUDE_CONFIG_DIR: configDir,
+    CLAUDE_PLUGIN_DATA: dataDir,
+    CLAUDE_PLUGIN_OPTION_OPENROUTER_API_KEY: 'sk-or-from-plugin',
+  });
+  assert.equal(hook.status, 0);
+  assert.equal(hook.stdout, '', 'a configured key means no idle notice');
+
+  // What a skill's Bash command sees: no plugin data dir and no plugin options.
+  const status = await runHook(['setup', '--status'], {}, {
+    OPENROUTER_API_KEY: '',
+    CLAUDE_CONFIG_DIR: configDir,
+    CLAUDE_PLUGIN_DATA: '',
+  });
+  assert.match(status.stdout, /provider: openrouter/);
+  assert.match(status.stdout, /key:\s+set, via plugin option/);
+});
+
+test('with no key anywhere, the session-start notice points at /jev:setup', async () => {
+  const { configDir, dataDir } = fixtureConfigDir();
+  const hook = await runHook(['hook', 'session-start'], { hook_event_name: 'SessionStart' }, {
+    OPENROUTER_API_KEY: '',
+    TYPESAFE_API_KEY: '',
+    CLAUDE_CONFIG_DIR: configDir,
+    CLAUDE_PLUGIN_DATA: dataDir,
+  });
+  assert.equal(hook.status, 0);
+  const message = JSON.parse(hook.stdout).systemMessage;
+  assert.match(message, /\/jev:setup/);
+  assert.doesNotMatch(message, /OpenRouter API key/);
 });

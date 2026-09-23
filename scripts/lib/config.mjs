@@ -44,9 +44,19 @@ function asNumber(raw, fallback, { min, max } = {}) {
 }
 
 // Plugin options reach hooks as CLAUDE_PLUGIN_OPTION_<KEY>. Casing has varied across
-// Claude Code versions, so check the uppercase and the literal spelling.
-function option(env, key) {
-  return firstDefined(env[`CLAUDE_PLUGIN_OPTION_${key.toUpperCase()}`], env[`CLAUDE_PLUGIN_OPTION_${key}`]);
+// Claude Code versions, so check the uppercase and the literal spelling. A Bash command
+// run by a skill never sees them, so it falls back to the copy a hook mirrored.
+function option(env, key, store = {}) {
+  const mirrored = store.plugin_options && typeof store.plugin_options === 'object' ? store.plugin_options : {};
+  return firstDefined(env[`CLAUDE_PLUGIN_OPTION_${key.toUpperCase()}`], env[`CLAUDE_PLUGIN_OPTION_${key}`], mirrored[key]);
+}
+
+/**
+ * Where /jev:setup keeps its key. It cannot be CLAUDE_PLUGIN_DATA: Claude Code exports that
+ * to hooks but not to the Bash commands a skill runs, and both have to read the same file.
+ */
+export function storeDirFor(configDir) {
+  return path.join(configDir, 'plugins', 'data', 'jev');
 }
 
 export function storePath(dataDir) {
@@ -68,13 +78,15 @@ export function readStore(dataDir) {
  * whichever provider has a key available is the one that gets used.
  */
 function resolveProvider(env, store) {
-  const explicit = firstDefined(env.JEV_PROVIDER, option(env, 'provider'), store.provider);
-  if (explicit && explicit !== 'auto' && PROVIDERS[explicit]) {
+  // "auto" is the option's default, so it must not hide a provider saved by /jev:setup.
+  const named = (value) => (value === 'auto' ? undefined : value);
+  const explicit = firstDefined(named(env.JEV_PROVIDER), named(option(env, 'provider', store)), named(store.provider));
+  if (explicit && PROVIDERS[explicit]) {
     return { id: explicit, reason: 'configured' };
   }
   for (const id of Object.keys(PROVIDERS)) {
     const provider = PROVIDERS[id];
-    if (firstDefined(env[provider.envKey], option(env, provider.optionKey))) {
+    if (firstDefined(env[provider.envKey], option(env, provider.optionKey, store))) {
       return { id, reason: 'key found for ' + provider.label };
     }
   }
@@ -86,7 +98,7 @@ function resolveProvider(env, store) {
 function resolveKey(env, store, provider) {
   const fromEnv = firstDefined(env[provider.envKey]);
   if (fromEnv) return { key: fromEnv, source: provider.envKey + ' env var' };
-  const fromOption = option(env, provider.optionKey);
+  const fromOption = option(env, provider.optionKey, store);
   if (fromOption) return { key: fromOption, source: 'plugin option' };
   // A stored key only counts for the provider it was saved against.
   if (store.api_key && (!store.provider || store.provider === provider.id)) {
@@ -97,8 +109,10 @@ function resolveKey(env, store, provider) {
 
 export function loadConfig(env = process.env) {
   const configDir = firstDefined(env.CLAUDE_CONFIG_DIR) || path.join(os.homedir(), '.claude');
-  const dataDir = firstDefined(env.CLAUDE_PLUGIN_DATA) || path.join(configDir, 'plugins', 'data', 'jev');
-  const store = readStore(dataDir);
+  const storeDir = storeDirFor(configDir);
+  // Logs, the judged-prompt marker, and the parked judgment are only ever touched by hooks.
+  const dataDir = firstDefined(env.CLAUDE_PLUGIN_DATA) || storeDir;
+  const store = readStore(storeDir);
 
   const chosen = resolveProvider(env, store);
   const provider = PROVIDERS[chosen.id];
@@ -113,29 +127,29 @@ export function loadConfig(env = process.env) {
     apiKey: key,
     apiKeySource: source,
     apiUrl: firstDefined(env.JEV_API_URL, store.api_url) || provider.apiUrl,
-    model: firstDefined(env.JEV_MODEL, option(env, 'model'), storedModel) || provider.models[0],
+    model: firstDefined(env.JEV_MODEL, option(env, 'model', store), storedModel) || provider.models[0],
     models: provider.models,
     fallbackModel: provider.models[1] || provider.models[0],
     routeEnabled: asBool(
-      firstDefined(env.JEV_ROUTE, option(env, 'route_enabled'), store.route_enabled),
+      firstDefined(env.JEV_ROUTE, option(env, 'route_enabled', store), store.route_enabled),
       DEFAULTS.routeEnabled,
     ),
     judgeEnabled: asBool(
-      firstDefined(env.JEV_JUDGE, option(env, 'judge_enabled'), store.judge_enabled),
+      firstDefined(env.JEV_JUDGE, option(env, 'judge_enabled', store), store.judge_enabled),
       DEFAULTS.judgeEnabled,
     ),
     routeMinConfidence: asNumber(
-      firstDefined(env.JEV_MIN_CONFIDENCE, option(env, 'route_min_confidence'), store.route_min_confidence),
+      firstDefined(env.JEV_MIN_CONFIDENCE, option(env, 'route_min_confidence', store), store.route_min_confidence),
       DEFAULTS.routeMinConfidence,
       { min: 0, max: 1 },
     ),
-    includeAgents: asBool(firstDefined(env.JEV_INCLUDE_AGENTS, option(env, 'include_agents')), DEFAULTS.includeAgents),
+    includeAgents: asBool(firstDefined(env.JEV_INCLUDE_AGENTS, option(env, 'include_agents', store)), DEFAULTS.includeAgents),
     routeExclude: (
-      firstDefined(env.JEV_ROUTE_EXCLUDE, option(env, 'route_exclude'), store.route_exclude) || DEFAULTS.routeExclude
+      firstDefined(env.JEV_ROUTE_EXCLUDE, option(env, 'route_exclude', store), store.route_exclude) || DEFAULTS.routeExclude
     ).split(',').map((s) => s.trim()).filter(Boolean),
-    sendDiff: asBool(firstDefined(env.JEV_SEND_DIFF, option(env, 'send_diff'), store.send_diff), DEFAULTS.sendDiff),
+    sendDiff: asBool(firstDefined(env.JEV_SEND_DIFF, option(env, 'send_diff', store), store.send_diff), DEFAULTS.sendDiff),
     timeoutMs: asNumber(
-      firstDefined(env.JEV_TIMEOUT_MS, option(env, 'timeout_ms')),
+      firstDefined(env.JEV_TIMEOUT_MS, option(env, 'timeout_ms', store)),
       DEFAULTS.timeoutMs,
       { min: 500, max: 30000 },
     ),
@@ -143,6 +157,7 @@ export function loadConfig(env = process.env) {
       .split(',').map((s) => s.trim()).filter(Boolean),
     debug: asBool(firstDefined(env.JEV_DEBUG), false),
     configDir,
+    storeDir,
     dataDir,
     cwd: firstDefined(env.CLAUDE_PROJECT_DIR) || process.cwd(),
   };

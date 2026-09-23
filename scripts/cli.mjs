@@ -9,7 +9,7 @@ import { formatJudgeReport } from './lib/format.mjs';
 import { consumeJudgment, renderRoute, route, shouldSkipPrompt } from './hooks/route.mjs';
 import { alreadyJudged, judge, markJudged, storeJudgment } from './hooks/judge.mjs';
 import { PROVIDERS, PROVIDER_IDS } from './lib/providers.mjs';
-import { clearStore, probeProvider, runSetup } from './lib/setup.mjs';
+import { clearStore, mirrorPluginOptions, probeProvider, runSetup } from './lib/setup.mjs';
 import { detectHost, detectPlatforms, getPlatform } from './lib/platforms.mjs';
 
 function parseFlags(argv) {
@@ -83,7 +83,7 @@ async function cmdSetup(flags) {
   }
 
   if (flags.reset) {
-    console.log(clearStore(config.dataDir) ? 'Stored settings removed.' : 'Nothing stored to remove.');
+    console.log(clearStore(config.storeDir) ? 'Stored settings removed.' : 'Nothing stored to remove.');
     return;
   }
 
@@ -97,7 +97,7 @@ async function cmdSetup(flags) {
   const result = await runSetup({
     providerId,
     apiKey: typeof apiKey === 'string' ? apiKey.trim() : '',
-    dataDir: config.dataDir,
+    storeDir: config.storeDir,
   });
 
   if (!result.ok) {
@@ -199,6 +199,7 @@ async function cmdDoctor() {
   console.log('jev doctor');
   console.log('  node:        ' + process.version);
   console.log('  config dir:  ' + config.configDir);
+  console.log('  key store:   ' + config.storeDir);
   console.log('  data dir:    ' + config.dataDir);
   const host = detectHost();
   const hostPlatform = host ? getPlatform(host) : null;
@@ -222,8 +223,9 @@ async function cmdDoctor() {
   console.log('  catalog:     ' + catalog.length + ' routable entries');
 
   if (!config.apiKey) {
-    console.log('\nNo key yet. Run /jev:setup to connect ' + config.providerLabel
-      + ', or set ' + PROVIDERS[config.provider].envKey + '.');
+    console.log('\nNo key yet. Run /jev:setup to connect TypeSafe or OpenRouter, or set '
+      + PROVIDERS.typesafe.envKey + ' or ' + PROVIDERS.openrouter.envKey + '.');
+    console.log('A key entered through /plugin is picked up here from the next session onward.');
     return;
   }
 
@@ -253,13 +255,23 @@ async function cmdDoctor() {
     + config.providerKeyUrl + ', or run /jev:setup to switch provider.');
 }
 
+/** Hooks are the only place /plugin options arrive, so copy them where the skills can read them. */
+function mirrorOptions(config) {
+  try {
+    mirrorPluginOptions(config.storeDir);
+  } catch {
+    /* a read-only home directory must not break the hook */
+  }
+}
+
 async function hookSessionStart() {
   const config = loadConfig();
+  mirrorOptions(config);
   if (config.apiKey) return;
   if (!config.routeEnabled && !config.judgeEnabled) return;
   emit({
-    systemMessage: 'jev is installed but has no OpenRouter API key, so it stays idle. '
-      + 'Set OPENROUTER_API_KEY or configure the plugin with /plugin.',
+    systemMessage: 'jev has no API key yet, so it stays idle. '
+      + 'Run /jev:setup to connect TypeSafe or OpenRouter.',
   });
 }
 
@@ -267,6 +279,7 @@ async function hookRoute() {
   const input = await readStdin();
   const config = loadConfig();
   const log = makeLogger(config);
+  mirrorOptions(config);
   if (!config.apiKey) return;
 
   const sessionId = input.session_id || null;

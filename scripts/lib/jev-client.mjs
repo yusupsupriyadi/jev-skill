@@ -86,7 +86,7 @@ export async function decide({
   sessionId = null,
   fetchImpl = globalThis.fetch,
 }) {
-  if (!apiKey) throw new JevError('No OpenRouter API key', { code: 'NO_KEY' });
+  if (!apiKey) throw new JevError('No API key', { code: 'NO_KEY' });
   validateQuestions(questions);
 
   const body = { model, state, questions };

@@ -43,10 +43,10 @@ export async function probeProvider({ provider, apiKey, apiUrl, models, timeoutM
   return { ok: false, provider, attempts };
 }
 
-export function saveStore(dataDir, values) {
-  const file = storePath(dataDir);
-  const merged = { ...readStore(dataDir), ...values, updated_at: new Date().toISOString() };
-  fs.mkdirSync(dataDir, { recursive: true });
+export function saveStore(storeDir, values) {
+  const file = storePath(storeDir);
+  const merged = { ...readStore(storeDir), ...values, updated_at: new Date().toISOString() };
+  fs.mkdirSync(storeDir, { recursive: true });
   fs.writeFileSync(file, JSON.stringify(merged, null, 2), { mode: 0o600 });
   try {
     // A second chmod matters when the file already existed with looser permissions.
@@ -61,7 +61,7 @@ export function saveStore(dataDir, values) {
  * Verifies a key against its provider and stores it only once it answers, so a typo is
  * reported instead of being written to disk and failing silently on every later prompt.
  */
-export async function runSetup({ providerId, apiKey, dataDir, apiUrl = null, timeoutMs = 10000 }) {
+export async function runSetup({ providerId, apiKey, storeDir, apiUrl = null, timeoutMs = 10000 }) {
   const provider = getProvider(providerId);
   if (!provider) {
     return { ok: false, error: 'Unknown provider "' + providerId + '". Use typesafe or openrouter.' };
@@ -89,7 +89,7 @@ export async function runSetup({ providerId, apiKey, dataDir, apiUrl = null, tim
     };
   }
 
-  const file = saveStore(dataDir, {
+  const file = saveStore(storeDir, {
     provider: provider.id,
     api_key: apiKey,
     model: result.model,
@@ -108,9 +108,31 @@ export async function runSetup({ providerId, apiKey, dataDir, apiUrl = null, tim
   };
 }
 
-export function clearStore(dataDir) {
+const OPTION_PREFIX = 'CLAUDE_PLUGIN_OPTION_';
+
+/**
+ * Copies the plugin options Claude Code hands to a hook into the store, because a skill's
+ * Bash command never receives them. A key entered through /plugin is then usable by
+ * /jev:ask and the rest too. Writes only on a change, and an option cleared in /plugin
+ * disappears from the copy on the next run.
+ */
+export function mirrorPluginOptions(storeDir, env = process.env) {
+  const options = {};
+  for (const [name, value] of Object.entries(env)) {
+    if (!name.startsWith(OPTION_PREFIX) || value === undefined || String(value).trim() === '') continue;
+    options[name.slice(OPTION_PREFIX.length).toLowerCase()] = String(value).trim();
+  }
+  const store = readStore(storeDir);
+  const current = store.plugin_options && typeof store.plugin_options === 'object' ? store.plugin_options : {};
+  const sorted = (object) => JSON.stringify(Object.keys(object).sort().map((key) => [key, object[key]]));
+  if (sorted(current) === sorted(options)) return false;
+  saveStore(storeDir, { plugin_options: options });
+  return true;
+}
+
+export function clearStore(storeDir) {
   try {
-    fs.unlinkSync(path.join(dataDir, 'config.json'));
+    fs.unlinkSync(path.join(storeDir, 'config.json'));
     return true;
   } catch {
     return false;
