@@ -166,6 +166,7 @@ async function cmdJudge(flags) {
     console.log('Nothing to judge: no changed files found in the working tree.');
     return;
   }
+  console.log('Judged ' + result.files.length + ' changed file(s): ' + result.files.join(', ') + '\n');
   console.log(formatJudgeReport(result.answers, result.findings));
   if (result.usage) console.log('\nCost: $' + Number(result.usage.cost || 0).toFixed(6));
 }

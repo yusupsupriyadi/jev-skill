@@ -117,9 +117,11 @@ export function finalQuestion(entries, { kind = 'skill' } = {}) {
 
 /**
  * Post-turn judgment. Every question is deliberately narrow so the caller can act on
- * each one independently rather than unpacking one broad verdict.
+ * each one independently rather than unpacking one broad verdict. `includeTurn: false`
+ * drops the two that read the turn's closing message and commands, for a working-tree
+ * judgment that has neither.
  */
-export function judgeQuestions({ reviewers = [] } = {}) {
+export function judgeQuestions({ reviewers = [], includeTurn = true } = {}) {
   const questions = {
     claims_done: {
       type: 'noul',
@@ -203,6 +205,11 @@ export function judgeQuestions({ reviewers = [] } = {}) {
       ],
     },
   };
+
+  if (!includeTurn) {
+    delete questions.claims_done;
+    delete questions.has_evidence;
+  }
 
   if (reviewers.length >= 1) {
     questions.reviewer = {

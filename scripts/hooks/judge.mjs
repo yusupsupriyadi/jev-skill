@@ -12,6 +12,7 @@ const MAX_DIFF_CHARS = 12000;
 const MAX_FINAL_MESSAGE_CHARS = 4000;
 const MAX_REVIEWERS = 30;
 const MAX_FILES = 40;
+const MAX_UNTRACKED_BYTES = 64 * 1024;
 
 function git(args, cwd) {
   const result = spawnSync('git', args, {
@@ -25,25 +26,78 @@ function git(args, cwd) {
   return result.stdout;
 }
 
+/** A path outside the work tree makes git reject the whole command, so drop those first. */
+function insideCwd(cwd, files) {
+  return (files || []).filter((file) => !path.relative(cwd, path.resolve(cwd, file)).startsWith('..'));
+}
+
+/** Files git does not track yet. `git diff` never shows them, and a new file is where a leaked key usually lands. */
+function untrackedFiles(cwd, files = null) {
+  const args = ['ls-files', '--others', '--exclude-standard', '-z'];
+  if (files && files.length > 0) {
+    const inside = insideCwd(cwd, files);
+    if (inside.length === 0) return [];
+    args.push('--', ...inside.slice(0, MAX_FILES));
+  }
+  const out = git(args, cwd);
+  return out ? out.split('\0').filter(Boolean) : [];
+}
+
+/** An untracked file written out as the diff git would print once it is added. */
+function newFileDiff(cwd, file) {
+  let buffer;
+  try {
+    buffer = fs.readFileSync(path.resolve(cwd, file));
+  } catch {
+    return null;
+  }
+  if (buffer.length > MAX_UNTRACKED_BYTES || buffer.includes(0)) return null;
+  const name = file.split(path.sep).join('/');
+  const lines = buffer.toString('utf8').replace(/\n$/, '').split('\n');
+  return [
+    'diff --git a/' + name + ' b/' + name,
+    'new file, not yet tracked by git',
+    '--- /dev/null',
+    '+++ b/' + name,
+    '@@ -0,0 +1,' + lines.length + ' @@',
+    ...lines.map((line) => '+' + line),
+  ].join('\n');
+}
+
 /** Diff of the files a turn touched, truncated so a large change cannot blow the context. */
 export function collectDiff({ cwd, files, staged = false, sendDiff = true }) {
   if (!sendDiff) return null;
   const args = ['--no-pager', 'diff', '--no-color'];
   if (staged) args.push('--staged');
-  if (files && files.length > 0) args.push('--', ...files.slice(0, MAX_FILES));
-  const out = git(args, cwd);
-  if (!out) return null;
-  const trimmed = out.trim();
-  if (!trimmed) return null;
-  return trimmed.length > MAX_DIFF_CHARS
-    ? trimmed.slice(0, MAX_DIFF_CHARS) + '\n[diff truncated]'
-    : trimmed;
+  if (files && files.length > 0) {
+    const inside = insideCwd(cwd, files);
+    if (inside.length > 0) args.push('--', ...inside.slice(0, MAX_FILES));
+  }
+  const parts = [];
+  const tracked = git(args, cwd);
+  if (tracked && tracked.trim()) parts.push(tracked.trim());
+  // Staged mode judges only what is staged, and an untracked file cannot be staged.
+  if (!staged) {
+    for (const file of untrackedFiles(cwd, files)) {
+      const diff = newFileDiff(cwd, file);
+      if (diff) parts.push(diff);
+    }
+  }
+  if (parts.length === 0) return null;
+  const joined = parts.join('\n');
+  return joined.length > MAX_DIFF_CHARS
+    ? joined.slice(0, MAX_DIFF_CHARS) + '\n[diff truncated]'
+    : joined;
 }
 
-export function changedFilesFromGit(cwd) {
-  const out = git(['--no-pager', 'diff', '--name-only'], cwd);
-  if (!out) return [];
-  return out.split('\n').map((line) => line.trim()).filter(Boolean).slice(0, MAX_FILES);
+/** Changed files relative to cwd, including new ones git does not track yet. */
+export function changedFilesFromGit(cwd, { staged = false } = {}) {
+  const args = ['--no-pager', 'diff', '--name-only', '--relative'];
+  if (staged) args.push('--staged');
+  const out = git(args, cwd);
+  const tracked = out ? out.split('\n').map((line) => line.trim()).filter(Boolean) : [];
+  const untracked = staged ? [] : untrackedFiles(cwd);
+  return [...new Set([...tracked, ...untracked])].slice(0, MAX_FILES);
 }
 
 function reviewerCandidates(config) {
@@ -74,18 +128,20 @@ export async function judge({
   staged = false,
   log = () => {},
 }) {
+  // A manual /jev:judge has no transcript, so it judges the working tree and skips the
+  // questions about what a turn claimed and ran: with nothing to read they only mislead.
+  const onDemand = !transcriptPath;
   let summary;
-  if (transcriptPath) {
+  if (!onDemand) {
     summary = summarizeTurn({ transcriptPath, promptId });
   } else {
-    // Manual /jev:judge run: no transcript slice, judge the working tree instead.
     summary = {
-      filesChanged: files && files.length > 0 ? files : changedFilesFromGit(config.cwd),
+      filesChanged: files && files.length > 0 ? files : changedFilesFromGit(config.cwd, { staged }),
       commands: [],
       verificationCommands: [],
       failedCommands: [],
       finalMessage: '',
-      touched: true,
+      touched: false,
     };
   }
 
@@ -98,17 +154,17 @@ export async function judge({
   const diff = collectDiff({ cwd: config.cwd, files: changed, staged, sendDiff: config.sendDiff });
   const message = String(finalMessage || summary.finalMessage || '').slice(0, MAX_FINAL_MESSAGE_CHARS);
 
-  const state = {
-    final_message: message,
-    files_changed: changed.slice(0, MAX_FILES),
-    commands_run: summary.commands.map((c) => ({ command: c.command, failed: c.failed })),
-    verification_commands: summary.verificationCommands.map((c) => ({ command: c.command, failed: c.failed })),
-  };
+  const state = { files_changed: changed.slice(0, MAX_FILES) };
+  if (!onDemand) {
+    state.final_message = message;
+    state.commands_run = summary.commands.map((c) => ({ command: c.command, failed: c.failed }));
+    state.verification_commands = summary.verificationCommands.map((c) => ({ command: c.command, failed: c.failed }));
+  }
   if (diff) state.diff = diff;
   else state.diff_note = config.sendDiff ? 'No diff available.' : 'Diff withheld by configuration.';
 
   const reviewers = reviewerCandidates(config);
-  const questions = judgeQuestions({ reviewers });
+  const questions = judgeQuestions({ reviewers, includeTurn: !onDemand });
   log('judging', { files: changed.length, reviewers: reviewers.length, diff: diff ? diff.length : 0 });
 
   const response = await decide({
