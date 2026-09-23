@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0
+
+- A key saved by `/jev:setup` now reaches the routing and judging hooks. Before, setup wrote it where only the `/jev:*` commands looked, so automatic routing and judging stayed idle after setup reported success.
+- A key entered through `/plugin` now reaches the `/jev:*` commands as well. Claude Code hands plugin options to hooks only, so jev copies them into its own store when a session starts.
+- A provider option left on `auto` no longer hides the provider `/jev:setup` saved.
+- Judging includes new files git does not track yet, on demand and after each turn. A credential in a brand-new file used to go unseen.
+- `/jev:judge` on a clean tree says there is nothing to judge instead of paying for an empty call. On demand it no longer asks whether the turn claimed success, which it cannot know without a transcript, and it lists the files it judged.
+- The skills say how to read what they print: `/jev:doctor` maps each failure to one action, `/jev:route` explains its two numbers, `/jev:judge` its thresholds.
+- `/jev:ask` covers batches (one state, one question per item, pointed at with `inspect`), passes files by absolute path, and gives confidence bands and failure handling.
+- On agents other than Claude Code, the skills say to run the `!` line themselves, and that `JEV_HOME` must be a clone of this repository, since `npx skills add` does not copy `scripts/`.
+
 ## 0.3.0
 
 - Runs on any agent that reads the cross-agent `SKILL.md` convention, not only Claude Code. Manifests ship for Codex, Cursor and Kimi Code, plus a cross-agent marketplace.

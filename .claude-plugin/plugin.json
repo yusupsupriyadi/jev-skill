@@ -1,7 +1,7 @@
 {
   "name": "jev",
   "displayName": "Jev",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Routes skill selection and post-turn code judgment through TypeSafe Jev, a structured decision model. Works with the TypeSafe API or with OpenRouter. Advisory only, never blocks.",
   "author": {
     "name": "Yusup Supriyadi",

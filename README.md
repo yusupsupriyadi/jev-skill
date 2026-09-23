@@ -1,6 +1,6 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/version-0.3.0-1f6feb" alt="Version 0.3.0">
+  <img src="https://img.shields.io/badge/version-0.4.0-1f6feb" alt="Version 0.4.0">
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2020-5fa04e" alt="Node 20 or newer">
   <img src="https://img.shields.io/badge/dependencies-0-8957e5" alt="Zero dependencies">
   <img src="https://img.shields.io/badge/providers-TypeSafe%20%7C%20OpenRouter-f0883e" alt="TypeSafe or OpenRouter">
@@ -45,25 +45,28 @@ than a false show of certainty: a Safari login bug returns `ecc:orch-fix-defect`
 
 ### It checks the claim against the record
 
-After a turn that changed files, `/jev:judge` on an uncommitted change to the routing logic:
+`/jev:judge` on the uncommitted change that became 0.4.0, which touched the config loader, the
+judge, and two new test files git did not track yet:
 
 ```
+Judged 22 changed file(s): .claude-plugin/marketplace.json, ..., tests/judge.test.mjs, tests/store.test.mjs
+
 Findings:
+- Risk of this change reads as medium.
 - Consider a review pass with ecc:code-reviewer.
 
 Raw answers:
-- claims_done: 0.04
-- has_evidence: 0.04
-- needs_tests: 0.27
-- secrets: 0.02
-- risk: 1.94 (confidence 0.93)
-- reviewer: ecc:code-reviewer (confidence 0.78)
+- needs_tests: 0.60
+- secrets: 0.03
+- risk: 2.18 (confidence 0.81)
+- reviewer: ecc:code-reviewer (confidence 0.60)
 
-Cost: $0.000260
+Cost: $0.000265
 ```
 
-`needs_tests` sits low because that diff already carried its tests. Had the turn announced success
-with nothing run, `claims_done` would be high and `has_evidence` low, and that pair is the finding.
+On demand it reads the working tree only. After each turn in Claude Code it also gets Claude's
+closing message and the commands the turn ran, and a turn that announced success with nothing
+run is the finding it exists for.
 
 ### It connects in one pass
 
@@ -90,7 +93,7 @@ later prompt.
 | Turn judgment | After a turn that changed files or ran commands | Asks whether the turn claimed success without verifying, whether a test is missing, whether a credential leaked, how risky the change is, and which reviewer fits |
 | `/jev:setup` | You invoke it | Picks a provider, verifies a key, saves it |
 | `/jev:route` | You invoke it | Routing on demand, for a task you describe |
-| `/jev:judge` | You invoke it | Judges the current working tree and prints the findings |
+| `/jev:judge` | You invoke it | Judges the current working tree, new untracked files included, and prints the findings |
 | `/jev:ask` | You or Claude invoke it | Runs any typed question you compose against any state |
 | `/jev:doctor` | You invoke it | Checks the setup and sends one live probe |
 
@@ -156,6 +159,13 @@ it succeeds, routing and judging start on your next prompt.
 Prefer not to use the wizard? Set the environment variable for your provider, or fill the key in
 through `/plugin`. An environment variable always wins over a stored key.
 
+Claude Code hands `/plugin` options only to hooks, never to the commands a skill runs. So jev
+copies them into its own store at the start of each session, and a key entered there reaches
+`/jev:ask`, `/jev:doctor`, and the rest from the next session on. The store is
+`~/.claude/plugins/data/jev/config.json`, readable by your user only, and `/jev:setup` writes
+the same file. On macOS that is a copy outside the Keychain. If you want the key in neither
+place, use the environment variable.
+
 Without a key the plugin stays completely idle. It never errors, never blocks, and never injects
 anything. Check the state at any time with `/jev:doctor`.
 
@@ -217,8 +227,9 @@ Where the skills land:
 
 jev scans only the directories belonging to the agent running it, so a skill installed for one
 agent is never suggested to a host that cannot load it. Claude Code identifies itself through its
-environment; for any other agent set `JEV_PLATFORM`, and set `JEV_HOME` to this plugin directory so
-the skills can find the CLI. Run `/jev:doctor` to see which agent jev thinks it is running under
+environment; for any other agent set `JEV_PLATFORM`. `npx skills add` installs the skill folders
+but not the `scripts/` directory the CLI lives in, so clone this repository as well and set
+`JEV_HOME` to the clone. Run `/jev:doctor` to see which agent jev thinks it is running under
 and which skills directories it found.
 
 **What is verified:** Claude Code, end to end, on Windows, plus a clean install through
@@ -261,7 +272,7 @@ which wins.
 | `timeout_ms` | `JEV_TIMEOUT_MS` | `2500` |
 | | `JEV_API_URL` | the provider's endpoint |
 | | `JEV_PLATFORM` | Claude Code when detected, else every agent |
-| | `JEV_HOME` | the plugin directory, for non-Claude agents |
+| | `JEV_HOME` | a clone of this repository, for non-Claude agents |
 | | `JEV_EXTRA_PLUGIN_DIRS` | empty |
 | | `JEV_DEBUG` | off |
 

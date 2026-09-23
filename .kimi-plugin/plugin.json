@@ -1,6 +1,6 @@
 {
   "name": "jev",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Structured decisions for coding agents: which installed skill fits the request, and what is wrong with the change a turn just made.",
   "author": {
     "name": "Yusup Supriyadi"
