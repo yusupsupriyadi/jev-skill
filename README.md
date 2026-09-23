@@ -150,6 +150,15 @@ One command, for any agent:
 npx jev-ai
 ```
 
+The npm package is not published yet. Until it is, run the same installer from a clone:
+
+```bash
+git clone https://github.com/yusupsupriyadi/jev-skill
+cd jev-skill/cli
+npm install
+node index.mjs
+```
+
 It asks where jev should go (this project, or every project on the machine), which agents get
 it, and whether to connect a key now. Then it copies the five skills into each agent's skills
 folder and the CLI they call into `~/.jev`, with that path written into every skill, so there is
