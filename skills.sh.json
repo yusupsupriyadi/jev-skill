@@ -1,0 +1,16 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Start here",
+      "description": "Connect a TypeSafe or OpenRouter key, then check that jev answers.",
+      "skills": ["jev-setup", "jev-doctor"]
+    },
+    {
+      "title": "Decide",
+      "description": "Pick the skill for a task, judge a change before you commit, or ask Jev any typed question.",
+      "skills": ["jev-route", "jev-judge", "jev-ask"]
+    }
+  ]
+}

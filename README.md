@@ -4,6 +4,7 @@
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2020-5fa04e" alt="Node 20 or newer">
   <img src="https://img.shields.io/badge/dependencies-0-8957e5" alt="Zero dependencies">
   <img src="https://img.shields.io/badge/providers-TypeSafe%20%7C%20OpenRouter-f0883e" alt="TypeSafe or OpenRouter">
+  <a href="https://skills.sh/yusupsupriyadi/jev-skill"><img src="https://skills.sh/b/yusupsupriyadi/jev-skill" alt="Listed on skills.sh"></a>
 </p>
 
 # jev for coding agents
@@ -204,7 +205,7 @@ Same request and response shape either way, so switching providers is a matter o
 | Route | Command | Then |
 |---|---|---|
 | Claude Code plugin | `claude plugin marketplace add yusupsupriyadi/jev-skill`, then `claude plugin install jev@jev-skill` | Nothing: this is what the installer runs when you pick the plugin |
-| skills.sh | `npx skills add yusupsupriyadi/jev-skill` | It copies the skills but not the CLI. Clone this repository and set `JEV_HOME` to the clone |
+| [skills.sh](https://skills.sh/yusupsupriyadi/jev-skill) | `npx skills add yusupsupriyadi/jev-skill` | It copies the skills but not the CLI. Clone this repository and set `JEV_HOME` to the clone |
 | Codex | `codex plugin marketplace add yusupsupriyadi/jev-skill`, then `codex plugin add jev@jev-skill` | Set `JEV_HOME` to the plugin's folder |
 | Kimi Code | `/plugins install https://github.com/yusupsupriyadi/jev-skill` | Set `JEV_HOME` to the plugin's folder |
 | Cursor | Add the marketplace through Cursor's Customize interface | Set `JEV_HOME` to the plugin's folder |
